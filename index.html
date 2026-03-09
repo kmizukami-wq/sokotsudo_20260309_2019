@@ -2055,7 +2055,7 @@ function submitContactForm(btn) {
   var body  = rows[4]?.querySelector('textarea')?.value?.trim();
   if (!name || !email) { alert('お名前とメールアドレスは必須です。'); return; }
   btn.disabled = true; btn.textContent = '送信中...';
-  fetch('https://formspree.io/f/xwkgpnkq', {
+  fetch('https://formspree.io/f/mdawaldp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
     body: JSON.stringify({
