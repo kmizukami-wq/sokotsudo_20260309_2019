@@ -278,7 +278,7 @@ section { padding: 96px 40px; }
 .about-text .section-lead { max-width: 100%; }
 .about-copy {
   font-family: var(--serif);
-  font-size: clamp(15px, 4.5vw, 22px); white-space: nowrap;
+  font-size: clamp(13px, 3.8vw, 22px); white-space: normal;
   font-weight: 700;
   color: var(--navy2);
   line-height: 1.6;
@@ -374,10 +374,12 @@ section { padding: 96px 40px; }
 }
 .result-name {
   font-family: var(--serif);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--navy2);
   margin-bottom: 4px;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 .result-area { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
 .result-tags { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -981,7 +983,9 @@ footer {
   .nav-links { display: none; }
   section { padding: 64px 20px; }
   .about-grid, .haka-grid, .contact-grid, .footer-top { grid-template-columns: 1fr; gap: 32px; }
-  .search-grid, .visit-steps, .apply-steps-nav { grid-template-columns: 1fr; }
+  .search-grid, .visit-steps { grid-template-columns: 1fr; }
+  .apply-steps-nav { display: flex !important; overflow-x: hidden; }
+  .apply-step-btn { flex: 1; min-width: 0; font-size: 9px !important; padding: 8px 1px !important; writing-mode: horizontal-tb !important; }
   .temple-grid, .payment-methods, .location-grid { grid-template-columns: 1fr 1fr; }
   .estimate-row { grid-template-columns: 1fr; }
   .footer-top { grid-template-columns: 1fr 1fr; }
@@ -992,7 +996,7 @@ footer {
 
 <!-- FLOATING CTA -->
 <div class="cta-float">
-  <a href="tel:0120000000" class="btn-tel">📞 無料相談</a>
+  <a href="tel:0120000000" class="btn-tel">無料相談</a>
   <a href="#apply" class="btn-apply">お申込はこちら</a>
 </div>
 
@@ -1029,7 +1033,7 @@ footer {
     <a href="#hakajimae">墓じまい</a>
     <a href="#faq">よくある質問</a>
     <a href="#contact">お問い合わせ</a>
-    <a href="tel:0120000000" class="nav-tel">📞 0120-XXX-XXX</a>
+    <a href="tel:0120000000" class="nav-tel">0120-XXX-XXX</a>
     <a href="#apply" class="nav-cta">お申込</a>
   </div>
 </nav>
@@ -1113,21 +1117,21 @@ footer {
         </p>
         <div style="margin-top:32px; display:flex; flex-direction:column; gap:16px;">
           <div style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--off);border-radius:4px;border-left:3px solid var(--gold);">
-            <span style="font-size:24px;">🏛️</span>
+            <span style="font-size:18px;font-weight:700;color:var(--gold);">寺</span>
             <div>
               <div style="font-size:13px;font-weight:700;color:var(--navy2);margin-bottom:2px;">寺院ネットワーク600寺以上</div>
               <div style="font-size:12px;color:var(--muted);">安心の寺院管理体制</div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--off);border-radius:4px;border-left:3px solid var(--gold);">
-            <span style="font-size:24px;">📱</span>
+            <span style="font-size:18px;font-weight:700;color:var(--gold);">QR</span>
             <div>
               <div style="font-size:13px;font-weight:700;color:var(--navy2);margin-bottom:2px;">QRコードでデジタル管理</div>
               <div style="font-size:12px;color:var(--muted);">いつでもお遺骨の状態を確認</div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--off);border-radius:4px;border-left:3px solid var(--gold);">
-            <span style="font-size:24px;">🚗</span>
+            <span style="font-size:18px;font-weight:700;color:var(--gold);">車</span>
             <div>
               <div style="font-size:13px;font-weight:700;color:var(--navy2);margin-bottom:2px;">専用車での丁寧なお届け</div>
               <div style="font-size:12px;color:var(--muted);">黒ナンバー貨物軽自動車運送事業</div>
@@ -1147,8 +1151,8 @@ footer {
     <div class="divider"></div>
     <div class="search-tabs">
       <button class="search-tab active" onclick="switchTab(this,'tab-area')">📍 エリアから探す</button>
-      <button class="search-tab" onclick="switchTab(this,'tab-sect')">🏮 宗派で探す</button>
-      <button class="search-tab" onclick="switchTab(this,'tab-price')">💴 金額で探す</button>
+      <button class="search-tab" onclick="switchTab(this,'tab-sect')">宗派で探す</button>
+      <button class="search-tab" onclick="switchTab(this,'tab-price')">金額で探す</button>
     </div>
 
     <div id="tab-area" class="search-panel active">
@@ -1599,7 +1603,7 @@ footer {
       <tr><th>許可・資格</th><td>貨物軽自動車運送事業（黒ナンバー）<br>商標登録・ビジネスモデル特許申請中（予定）</td></tr>
       <tr><th>提携実績</th><td>600寺以上の寺院ネットワーク<br>NPO法人終活サポートセンター：5万人超の相談実績</td></tr>
       <tr><th>所在地</th><td>〒111-0051 東京都台東区蔵前4-33-9</td></tr>
-      <tr><th>電話番号</th><td>0120-XXX-XXX（受付時間：平日10:00〜17:00）</td></tr>
+      <tr><th>電話番号</th><td>0120-XXX-XXX（受付時間：毎日10:00〜17:00）</td></tr>
     </table>
   </div>
 </section>
@@ -2050,21 +2054,16 @@ function submitContactForm(btn) {
   var type  = rows[3]?.querySelector('select')?.value;
   var body  = rows[4]?.querySelector('textarea')?.value?.trim();
   if (!name || !email) { alert('お名前とメールアドレスは必須です。'); return; }
-  btn.disabled = true; btn.textContent = '送信中...';
-  fetch('https://formspree.io/f/xwkgynkq', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body: JSON.stringify({ name: name, email: email, tel: tel, type: type, message: body, _replyto: email })
-  })
-  .then(function(r) {
-    btn.disabled = false; btn.textContent = '送信する';
-    if (r.ok) { alert('お問い合わせを受け付けました。\n2営業日以内にご返信いたします。'); }
-    else { alert('送信に失敗しました。時間をおいて再度お試しください。'); }
-  })
-  .catch(function() {
-    btn.disabled = false; btn.textContent = '送信する';
-    alert('送信に失敗しました。時間をおいて再度お試しください。');
-  });
+  var subject = encodeURIComponent('【送骨堂】お問い合わせ' + (type ? '：' + type : ''));
+  var mailBody = encodeURIComponent(
+    'お名前：' + name + '\n' +
+    'メールアドレス：' + email + '\n' +
+    '電話番号：' + (tel || '（未入力）') + '\n' +
+    'お問い合わせ種別：' + (type || '（未入力）') + '\n\n' +
+    '内容：\n' + (body || '（未入力）')
+  );
+  window.location.href = 'mailto:inquiries@sokotsudo.com?subject=' + subject + '&body=' + mailBody;
+  setTimeout(function() { alert('メールアプリが開きます。確認の上、送信してください。'); }, 300);
 }
 
 // ── Tab switching ──
