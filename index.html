@@ -278,7 +278,7 @@ section { padding: 96px 40px; }
 .about-text .section-lead { max-width: 100%; }
 .about-copy {
   font-family: var(--serif);
-  font-size: clamp(13px, 3.8vw, 22px); white-space: normal;
+  font-size: clamp(12px, 3.5vw, 22px); white-space: nowrap; overflow-wrap: normal;
   font-weight: 700;
   color: var(--navy2);
   line-height: 1.6;
@@ -1117,21 +1117,21 @@ footer {
         </p>
         <div style="margin-top:32px; display:flex; flex-direction:column; gap:16px;">
           <div style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--off);border-radius:4px;border-left:3px solid var(--gold);">
-            <span style="font-size:18px;font-weight:700;color:var(--gold);">寺</span>
+            
             <div>
               <div style="font-size:13px;font-weight:700;color:var(--navy2);margin-bottom:2px;">寺院ネットワーク600寺以上</div>
               <div style="font-size:12px;color:var(--muted);">安心の寺院管理体制</div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--off);border-radius:4px;border-left:3px solid var(--gold);">
-            <span style="font-size:18px;font-weight:700;color:var(--gold);">QR</span>
+            
             <div>
               <div style="font-size:13px;font-weight:700;color:var(--navy2);margin-bottom:2px;">QRコードでデジタル管理</div>
               <div style="font-size:12px;color:var(--muted);">いつでもお遺骨の状態を確認</div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--off);border-radius:4px;border-left:3px solid var(--gold);">
-            <span style="font-size:18px;font-weight:700;color:var(--gold);">車</span>
+            
             <div>
               <div style="font-size:13px;font-weight:700;color:var(--navy2);margin-bottom:2px;">専用車での丁寧なお届け</div>
               <div style="font-size:12px;color:var(--muted);">黒ナンバー貨物軽自動車運送事業</div>
@@ -1681,7 +1681,7 @@ footer {
         <button class="apply-step-btn" onclick="switchApplyGuarded(1)">② 管理期間</button>
         <button class="apply-step-btn" onclick="switchApplyGuarded(2)">③ 費用確認</button>
         <button class="apply-step-btn" onclick="switchApplyGuarded(3)">④ お客様情報</button>
-        <button class="apply-step-btn" onclick="switchApplyGuarded(4)">⑤ 規約・同意</button>
+        <button class="apply-step-btn" onclick="switchApplyGuarded(4)">⑤規約同意</button>
         <button class="apply-step-btn" onclick="switchApplyGuarded(5)">⑥ 今後の流れ</button>
       </div>
 
@@ -2007,7 +2007,7 @@ footer {
   <circle cx="336" cy="214" r="10" fill="none" stroke="#c9a227" stroke-width="5.5"/>
 </svg>
         <div class="footer-brand-text">送骨堂</div>
-        <div class="footer-tagline">お墓を「招く」時代へ</div>
+        <div class="footer-tagline" style="white-space:nowrap;">お墓を「招く」時代へ</div>
       </div>
       <div>
         <div class="footer-col-title">サービス</div>
@@ -2054,16 +2054,28 @@ function submitContactForm(btn) {
   var type  = rows[3]?.querySelector('select')?.value;
   var body  = rows[4]?.querySelector('textarea')?.value?.trim();
   if (!name || !email) { alert('お名前とメールアドレスは必須です。'); return; }
-  var subject = encodeURIComponent('【送骨堂】お問い合わせ' + (type ? '：' + type : ''));
-  var mailBody = encodeURIComponent(
-    'お名前：' + name + '\n' +
-    'メールアドレス：' + email + '\n' +
-    '電話番号：' + (tel || '（未入力）') + '\n' +
-    'お問い合わせ種別：' + (type || '（未入力）') + '\n\n' +
-    '内容：\n' + (body || '（未入力）')
-  );
-  window.location.href = 'mailto:inquiries@sokotsudo.com?subject=' + subject + '&body=' + mailBody;
-  setTimeout(function() { alert('メールアプリが開きます。確認の上、送信してください。'); }, 300);
+  btn.disabled = true; btn.textContent = '送信中...';
+  fetch('https://formspree.io/f/xwkgpnkq', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({
+      name: name,
+      _replyto: email,
+      email: email,
+      tel: tel || '（未入力）',
+      type: type || '（未入力）',
+      message: body || '（未入力）'
+    })
+  })
+  .then(function(r) {
+    btn.disabled = false; btn.textContent = '送信する';
+    if (r.ok) { alert('お問い合わせを受け付けました。\nご入力のメールアドレスに確認メールをお送りしました。'); }
+    else { alert('送信に失敗しました。時間をおいて再度お試しください。'); }
+  })
+  .catch(function() {
+    btn.disabled = false; btn.textContent = '送信する';
+    alert('送信に失敗しました。時間をおいて再度お試しください。');
+  });
 }
 
 // ── Tab switching ──
