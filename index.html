@@ -1117,21 +1117,18 @@ footer {
         </p>
         <div style="margin-top:32px; display:flex; flex-direction:column; gap:16px;">
           <div style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--off);border-radius:4px;border-left:3px solid var(--gold);">
-            
             <div>
               <div style="font-size:13px;font-weight:700;color:var(--navy2);margin-bottom:2px;">寺院ネットワーク600寺以上</div>
               <div style="font-size:12px;color:var(--muted);">安心の寺院管理体制</div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--off);border-radius:4px;border-left:3px solid var(--gold);">
-            
             <div>
               <div style="font-size:13px;font-weight:700;color:var(--navy2);margin-bottom:2px;">QRコードでデジタル管理</div>
               <div style="font-size:12px;color:var(--muted);">いつでもご遺骨の状態を確認</div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--off);border-radius:4px;border-left:3px solid var(--gold);">
-            
             <div>
               <div style="font-size:13px;font-weight:700;color:var(--navy2);margin-bottom:2px;">専用車での丁寧なお届け</div>
               <div style="font-size:12px;color:var(--muted);">黒ナンバー貨物軽自動車運送事業</div>
@@ -1729,7 +1726,6 @@ footer {
             oninput="updatePeriod(this.value)">
           <div class="period-display">
             <span>最低 3年</span>
-            
             <span>30年</span>
           </div>
         </div>
@@ -1923,8 +1919,6 @@ footer {
   </div>
 </section>
 
-
-
 <!-- CONTACT -->
 <section id="contact">
   <div class="section-inner">
@@ -2069,7 +2063,7 @@ function submitContactForm(btn) {
   })
   .then(function(r) {
     btn.disabled = false; btn.textContent = '送信する';
-    if (r.ok) { alert('お問い合わせを受け付けました。\nご入力のメールアドレスに確認メールをお送りしました。'); }
+    if (r.ok) { alert('お問い合わせを受け付けました。\n担当者からのご連絡をお待ちください。'); }
     else { alert('送信に失敗しました。時間をおいて再度お試しください。'); }
   })
   .catch(function() {
@@ -2238,7 +2232,7 @@ function calcEstimate() {
   var contract = tData ? tData.price : 90000;
   var manage   = 36000 * period;
   var extraFee = extra * 30000;
-  var boxFee   = 20000; // 骨箱は常に含める（非表示だが必須）
+  var boxFee   = 20000;
   var total    = contract + manage + extraFee + boxFee;
 
   var mEl = document.getElementById('estManage');
@@ -2247,7 +2241,6 @@ function calcEstimate() {
   var exEl = document.getElementById('estExtraLine');
   if (exEl) exEl.style.display = extra > 0 ? '' : 'none';
 
-  // 骨箱行は非表示のまま
   var bxEl = document.getElementById('estBoxLine');
   if (bxEl) bxEl.style.display = 'none';
 
@@ -2398,7 +2391,6 @@ function submitApplyData() {
     submittedAt: new Date().toISOString()
   };
   console.log('[送骨堂] 申込データ:', JSON.stringify(data, null, 2));
-  // TODO: CRM完成後 → fetch('/api/apply', { method:'POST', body: JSON.stringify(data) })
 }
 
 function checkConsent() {
