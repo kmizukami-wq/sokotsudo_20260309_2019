@@ -1237,20 +1237,6 @@ footer {
         <select class="field-select" id="estTemple" onchange="onTempleChange()">
           <option value="">選択してください</option>
         </select>
-        <div id="estTempleInfo" style="display:none;margin-top:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(201,162,39,0.3);border-radius:4px;padding:12px 16px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-            <div>
-              <div style="font-size:13px;font-weight:700;color:var(--white);" id="estTempleName">—</div>
-              <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;" id="estTempleSect">—</div>
-            </div>
-            <div style="text-align:right;">
-              <div style="font-size:11px;color:rgba(255,255,255,0.4);">契約金</div>
-              <div style="font-size:18px;font-weight:700;color:var(--gold-light);" id="estTemplePrice">—</div>
-              <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px;">志納金</div>
-              <div style="font-size:15px;font-weight:700;color:var(--gold-light);" id="estTempleKinugi">—</div>
-            </div>
-          </div>
-        </div>
       </div>
       <!-- 管理期間スライダー -->
       <div class="estimate-row" style="grid-template-columns:1fr;">
@@ -2020,7 +2006,6 @@ function onTempleChange() {
     document.getElementById('estTempleSect').textContent = t.sect;
     document.getElementById('estTemplePrice').textContent = '¥' + t.price.toLocaleString();
     document.getElementById('estTempleKinugi').textContent = '¥' + t.kinugi.toLocaleString();
-    info.style.display = 'block';
   }
   calcEstimate();
 }
