@@ -1156,24 +1156,17 @@ footer {
       <div class="search-grid">
         <div class="search-select-wrap">
           <label>都道府県</label>
-          <select class="search-input" onchange="updateResults()">
-            <option>選択してください</option>
-            <option>東京都</option><option>神奈川県</option><option>埼玉県</option>
-            <option>千葉県</option><option>大阪府</option><option>京都府</option>
-            <option>愛知県</option><option>福岡県</option>
-          </select>
-        </div>
+          <select class="search-input" id="searchArea" onchange="onSearchAreaChange();updateResults()">
+            <option value="">選択してください</option>
+          </select></div>
         <div class="search-select-wrap">
           <label>市区町村</label>
-          <select class="search-input" onchange="updateResults()">
-            <option>選択してください</option>
-            <option>渋谷区</option><option>新宿区</option><option>港区</option>
-            <option>世田谷区</option><option>目黒区</option>
-          </select>
-        </div>
+          <select class="search-input" id="searchCity" onchange="updateResults()">
+            <option value="">選択してください</option>
+          </select></div>
         <div>
           <label style="font-size:11px;letter-spacing:0.2em;color:var(--muted);display:block;margin-bottom:6px;">キーワード</label>
-          <input class="search-input" type="text" placeholder="寺院名・地名など" style="border:1px solid #e0ddd8;border-radius:2px;background:var(--off);">
+          <input class="search-input" id="searchKeyword" type="text" placeholder="寺院名・地名など" oninput="updateResults()" style="border:1px solid #e0ddd8;border-radius:2px;background:var(--off);">
         </div>
       </div>
       <button class="btn-primary" onclick="updateResults()">検索する</button>
@@ -1183,13 +1176,8 @@ footer {
       <div class="search-grid">
         <div class="search-select-wrap">
           <label>宗派</label>
-          <select class="search-input" onchange="updateResults()">
-            <option>宗派を選択</option>
-            <option>浄土宗</option><option>浄土真宗（本願寺派）</option>
-            <option>浄土真宗（大谷派）</option><option>臨済宗</option>
-            <option>曹洞宗</option><option>真言宗</option>
-            <option>天台宗</option><option>日蓮宗</option>
-            <option>宗派不問</option>
+          <select class="search-input" id="searchSect" onchange="updateResults()">
+            <option value="">宗派を選択</option>
           </select>
         </div>
       </div>
@@ -1963,6 +1951,9 @@ var estTemples = [
 var temples = [
   { name:'サンプル寺　納骨堂', area:'東京都', city:'中央区', sect:'宗派不問', price:90000, kinugi:10000, annualFee:36000, tags:['永代供養','QR管理','個別安置'] }
 ];
+var searchAreas = ["東京都"];
+var searchAreaCityMap = {"東京都":["中央区"]};
+var searchSects = ["宗派不問"];
 
 
 function initEstArea() {
@@ -2017,15 +2008,15 @@ function updateResults() {
   var filtered = temples.slice();
   if (activeTab.includes('エリア')) {
     var selects = document.querySelectorAll('#tab-area .search-input');
-    var areaVal = selects[0] ? selects[0].value : '';
-    var cityVal = selects[1] ? selects[1].value : '';
-    var keyword = selects[2] ? selects[2].value.trim() : '';
-    if (areaVal && areaVal !== '選択してください') filtered = filtered.filter(function(t) { return t.area === areaVal; });
-    if (cityVal && cityVal !== '選択してください') filtered = filtered.filter(function(t) { return t.city === cityVal; });
+    var areaVal  = (document.getElementById('searchArea')||{}).value || '';
+    var cityVal  = (document.getElementById('searchCity')||{}).value || '';
+    var keyword  = (document.getElementById('searchKeyword')||{}).value.trim();
+    if (areaVal) filtered = filtered.filter(function(t) { return t.area === areaVal; });
+    if (cityVal) filtered = filtered.filter(function(t) { return t.city === cityVal; });
     if (keyword) filtered = filtered.filter(function(t) { return t.name.includes(keyword)||t.area.includes(keyword)||t.city.includes(keyword); });
   } else if (activeTab.includes('宗派')) {
-    var sectVal = (document.querySelector('#tab-sect .search-input') || {}).value || '';
-    if (sectVal && sectVal !== '宗派を選択' && sectVal !== '宗派不問') filtered = filtered.filter(function(t) { return t.sect === sectVal || t.sect === '宗派不問'; });
+    var sectVal = (document.getElementById('searchSect')||{}).value || '';
+    if (sectVal && sectVal !== '宗派を選択') filtered = filtered.filter(function(t) { return t.sect === sectVal || t.sect === '宗派不問'; });
   } else if (activeTab.includes('金額')) {
     var priceMax = parseInt((document.getElementById('priceRange') || {}).value || 999999);
     filtered = filtered.filter(function(t) { return t.price <= priceMax; });
@@ -2111,6 +2102,7 @@ function selectDate(el, dateStr) {
 }
 document.addEventListener('DOMContentLoaded', function() {
   renderCal();
+  initSearchSelects();
   updateResults();
   initEstArea();
 });
@@ -2375,6 +2367,31 @@ function updateManageFeeBox() {
   var lblEl  = document.getElementById('estManageFeeLabel');
   if (amtEl) amtEl.textContent = tData ? '¥' + manage.toLocaleString() : '—';
   if (lblEl) lblEl.textContent = '管理費（' + period + '年分）';
+}
+
+function initSearchSelects() {
+  var areaEl = document.getElementById('searchArea');
+  var sectEl = document.getElementById('searchSect');
+  if (areaEl) {
+    searchAreas.forEach(function(a) {
+      var o = document.createElement('option'); o.value = a; o.textContent = a; areaEl.appendChild(o);
+    });
+  }
+  if (sectEl) {
+    searchSects.forEach(function(s) {
+      var o = document.createElement('option'); o.value = s; o.textContent = s; sectEl.appendChild(o);
+    });
+  }
+}
+function onSearchAreaChange() {
+  var area   = (document.getElementById('searchArea')||{}).value || '';
+  var cityEl = document.getElementById('searchCity');
+  if (!cityEl) return;
+  cityEl.innerHTML = '<option value="">選択してください</option>';
+  var cities = area ? (searchAreaCityMap[area] || []) : [];
+  cities.forEach(function(c) {
+    var o = document.createElement('option'); o.value = c; o.textContent = c; cityEl.appendChild(o);
+  });
 }
 </script>
 </body>
