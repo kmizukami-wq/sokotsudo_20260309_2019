@@ -37,7 +37,8 @@ LEVERAGE = 25
 SPREAD_PIPS = 0.3
 SPREAD_JPY = SPREAD_PIPS * 0.01  # 0.003 JPY per unit
 ENTRY_THRESHOLD_JPY = 0.30       # 30 pips
-SL_JPY = 0.30                    # 30 pips stop loss
+TP_JPY = 0.10                    # 10 pips take profit
+SL_JPY = 0.10                    # 10 pips stop loss
 INITIAL_CAPITAL = 1_000_000
 SIMULATION_CAPITAL = 100_000
 RISK_PER_TRADE = 0.02
@@ -90,55 +91,36 @@ class NYCloseTrade:
     date: object
     ny_close: float
     entry_price: float
-    direction: int          # +1 LONG, -1 SHORT
+    direction: int          # -1 SHORT
     deviation_pips: float
     units: float
-    tp1_level: float
-    tp2_level: float
+    tp_level: float
     sl_level: float
-    outcome: str            # 'SL', 'TP1+TP2', 'TP1+SL', 'TP1_only', 'NO_HIT'
-    pnl_tp1: float = 0.0
-    pnl_tp2: float = 0.0
+    outcome: str            # 'TP', 'SL', 'NO_HIT'
     pnl_total: float = 0.0
 
 
 # ============================================================
 # Outcome Resolution
 # ============================================================
-def resolve_outcome(direction, open_price, high, low, tp1_level, tp2_level, sl_level):
-    if direction == 1:  # LONG
-        sl_hit = low <= sl_level
-        tp1_hit = high >= tp1_level
-        tp2_hit = high >= tp2_level
-        dist_to_sl = open_price - sl_level
-        dist_to_tp1 = tp1_level - open_price
-    else:  # SHORT
-        sl_hit = high >= sl_level
-        tp1_hit = low <= tp1_level
-        tp2_hit = low <= tp2_level
-        dist_to_sl = sl_level - open_price
-        dist_to_tp1 = open_price - tp1_level
+def resolve_outcome(direction, entry_price, high, low, tp_level, sl_level):
+    # SHORT: TP is below entry, SL is above entry
+    sl_hit = high >= sl_level
+    tp_hit = low <= tp_level
+    dist_to_sl = sl_level - entry_price
+    dist_to_tp = entry_price - tp_level
 
-    if not sl_hit and not tp1_hit:
+    if not sl_hit and not tp_hit:
         return 'NO_HIT'
-
-    if sl_hit and not tp1_hit:
+    if sl_hit and not tp_hit:
         return 'SL'
-
-    if tp1_hit and not sl_hit:
-        if tp2_hit:
-            return 'TP1+TP2'
-        else:
-            return 'TP1_only'
-
-    # Both sl_hit and tp1_hit
-    if dist_to_sl < dist_to_tp1:
+    if tp_hit and not sl_hit:
+        return 'TP'
+    # Both hit: closer one hit first
+    if dist_to_sl <= dist_to_tp:
         return 'SL'
     else:
-        if tp2_hit:
-            return 'TP1+TP2'
-        else:
-            return 'TP1+SL'
+        return 'TP'
 
 
 # ============================================================
@@ -167,13 +149,12 @@ def run_backtest(df, initial_capital=INITIAL_CAPITAL):
 
         direction = -1  # SHORT only
 
-        # Calculate levels (SHORT)
+        # Calculate levels (SHORT): TP = 10pips down, SL = 10pips up
         effective_entry = entry_price - SPREAD_JPY / 2
-        tp1_level = effective_entry - (effective_entry - ny_close) / 2
-        tp2_level = ny_close
+        tp_level = effective_entry - TP_JPY
         sl_level = effective_entry + SL_JPY
 
-        # Position sizing: 2% risk / 30 pip stop
+        # Position sizing: 2% risk / SL distance
         risk_amount = equity * RISK_PER_TRADE
         units = risk_amount / SL_JPY
         max_units = (equity * LEVERAGE) / entry_price
@@ -183,50 +164,17 @@ def run_backtest(df, initial_capital=INITIAL_CAPITAL):
             equity_curve.append({'date': date, 'equity': equity})
             continue
 
-        half_units = units / 2
-
         # Resolve outcome
         outcome = resolve_outcome(direction, entry_price, high, low,
-                                  tp1_level, tp2_level, sl_level)
+                                  tp_level, sl_level)
 
         # Calculate PnL
-        pnl_tp1 = 0.0
-        pnl_tp2 = 0.0
-
-        if outcome == 'SL':
-            pnl_tp1 = 0
-            pnl_tp2 = 0
+        if outcome == 'TP':
+            pnl_total = units * TP_JPY
+        elif outcome == 'SL':
             pnl_total = -units * SL_JPY
-
-        elif outcome == 'TP1+TP2':
-            tp1_profit = abs(tp1_level - effective_entry)
-            tp2_profit = abs(tp2_level - effective_entry)
-            pnl_tp1 = half_units * tp1_profit
-            pnl_tp2 = half_units * tp2_profit
-            pnl_total = pnl_tp1 + pnl_tp2
-
-        elif outcome == 'TP1+SL':
-            tp1_profit = abs(tp1_level - effective_entry)
-            pnl_tp1 = half_units * tp1_profit
-            pnl_tp2 = -half_units * SL_JPY
-            pnl_total = pnl_tp1 + pnl_tp2
-
-        elif outcome == 'TP1_only':
-            tp1_profit = abs(tp1_level - effective_entry)
-            pnl_tp1 = half_units * tp1_profit
-            if direction == 1:
-                pnl_tp2 = half_units * (close - effective_entry)
-            else:
-                pnl_tp2 = half_units * (effective_entry - close)
-            pnl_total = pnl_tp1 + pnl_tp2
-
         elif outcome == 'NO_HIT':
-            if direction == 1:
-                pnl_total = units * (close - effective_entry)
-            else:
-                pnl_total = units * (effective_entry - close)
-            pnl_tp1 = pnl_total / 2
-            pnl_tp2 = pnl_total / 2
+            pnl_total = units * (effective_entry - close)
 
         # Deduct spread cost (round-trip)
         spread_cost = units * SPREAD_JPY
@@ -239,12 +187,9 @@ def run_backtest(df, initial_capital=INITIAL_CAPITAL):
             direction=direction,
             deviation_pips=deviation / 0.01,
             units=units,
-            tp1_level=tp1_level,
-            tp2_level=tp2_level,
+            tp_level=tp_level,
             sl_level=sl_level,
             outcome=outcome,
-            pnl_tp1=pnl_tp1,
-            pnl_tp2=pnl_tp2,
             pnl_total=pnl_total,
         )
         trades.append(trade)
@@ -338,10 +283,8 @@ def generate_report(trades, equity_df, metrics, sim_trades, sim_equity, df):
     lines.append("     ※直近2.7年は時間足から10:00 JST正確値、それ以前は始値(9:00)近似")
     lines.append("  3. NYクローズから+30pips以上上回っている場合のみエントリー")
     lines.append("     → ショート(売り)のみ。ロングエントリーなし")
-    lines.append("  4. 利確条件:")
-    lines.append("     → TP1: エントリー〜NYクローズの中間到達で半分決済")
-    lines.append("     → TP2: NYクローズ到達で残り半分決済")
-    lines.append("  5. 損切り: エントリーから30pips逆方向(上方向)で全決済")
+    lines.append(f"  4. 利確: NYクローズ方向(下方向)に{TP_JPY/0.01:.0f}pips動いたら全決済")
+    lines.append(f"  5. 損切り: 逆方向(上方向)に{SL_JPY/0.01:.0f}pips動いたら全決済")
     lines.append("")
 
     lines.append("=" * 70)
@@ -370,13 +313,11 @@ def generate_report(trades, equity_df, metrics, sim_trades, sim_equity, df):
     lines.append("■ トレード結果分布:")
     lines.append("-" * 50)
     outcome_names = {
-        'TP1+TP2': 'TP1+TP2 (両利確)',
-        'TP1_only': 'TP1のみ (残り終値決済)',
-        'TP1+SL': 'TP1利確後SL (分割損益)',
-        'SL': 'ストップロス (全損切り)',
+        'TP': '利確 (+10pips)',
+        'SL': '損切り (-10pips)',
         'NO_HIT': 'TP/SL未到達 (終値決済)',
     }
-    for key in ['TP1+TP2', 'TP1_only', 'TP1+SL', 'SL', 'NO_HIT']:
+    for key in ['TP', 'SL', 'NO_HIT']:
         count = outcomes.get(key, 0)
         pct = count / total_trades * 100 if total_trades > 0 else 0
         label = outcome_names.get(key, key)
