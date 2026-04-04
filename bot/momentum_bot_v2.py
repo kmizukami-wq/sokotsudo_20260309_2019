@@ -94,10 +94,10 @@ WARMUP_DAYS = 4        # Days of history to fetch on startup
 CAPITAL_RATIO = 0.90   # V3 optimal: 90% of collateral per trade
 MAX_LOSS_RATIO = 0.15  # Emergency stop at -15%
 
-# XGBoost hybrid thresholds (V4 Boost mode)
-ML_PROB_BOOST = 0.55   # Above this → 1.2x size (ML confident)
-ML_PROB_SKIP = 0.40    # Below this → skip trade (ML disagrees)
-ML_BOOST_MULT = 1.2    # Size multiplier for high-confidence trades
+# XGBoost hybrid thresholds (V4+ optimized via 34k param sweep)
+ML_PROB_BOOST = 0.50   # Above this → 2.2x size (ML confident)
+ML_PROB_SKIP = 0.45    # Below this → skip trade (ML disagrees)
+ML_BOOST_MULT = 2.2    # Size multiplier for high-confidence trades
 
 # Timing
 INTV = 300             # Check interval: 5 minutes
