@@ -337,3 +337,75 @@ class AdaptiveThreshold:
     def get_threshold(self, vol_regime):
         """Returns threshold for current regime."""
         return self.thresholds.get(vol_regime, self.base_threshold)
+
+
+# ---------------------------------------------------------------------------
+# Mean Reversion: Stop Loss
+# ---------------------------------------------------------------------------
+
+class MRStopLoss:
+    """ATR-based stop loss for mean reversion trades.
+
+    Tighter than momentum: ATR × 1.5, min 0.8%, max 3.0%.
+    """
+
+    def __init__(self, atr_multiplier=1.5, min_stop_pct=0.008, max_stop_pct=0.03):
+        self.atr_multiplier = atr_multiplier
+        self.min_stop_pct = min_stop_pct
+        self.max_stop_pct = max_stop_pct
+
+    def stop_distance_pct(self, current_atr, current_price):
+        if current_atr is None or current_price <= 0:
+            return 0.015
+        stop_pct = (current_atr * self.atr_multiplier) / current_price
+        return max(self.min_stop_pct, min(self.max_stop_pct, stop_pct))
+
+
+# ---------------------------------------------------------------------------
+# Mean Reversion: Entry Filter
+# ---------------------------------------------------------------------------
+
+class MREntryFilter:
+    """Entry filter for mean reversion: ADX < threshold, RSI extreme, BB breach."""
+
+    def __init__(self, adx_max=20.0, rsi_oversold=30.0, rsi_overbought=70.0):
+        self.adx_max = adx_max
+        self.rsi_oversold = rsi_oversold
+        self.rsi_overbought = rsi_overbought
+
+    def check_long(self, adx_value, rsi_value, close, bb_lower):
+        """MR Long: ADX < max, RSI < oversold, close <= BB lower."""
+        if adx_value is not None and adx_value >= self.adx_max:
+            return False, f"ADX={adx_value:.1f} >= {self.adx_max} (trending)"
+        if rsi_value is not None and rsi_value >= self.rsi_oversold:
+            return False, f"RSI={rsi_value:.1f} >= {self.rsi_oversold}"
+        if close is not None and bb_lower is not None and close > bb_lower:
+            return False, f"Close={close:.0f} > BB_lower={bb_lower:.0f}"
+        return True, "OK"
+
+    def check_short(self, adx_value, rsi_value, close, bb_upper):
+        """MR Short: ADX < max, RSI > overbought, close >= BB upper."""
+        if adx_value is not None and adx_value >= self.adx_max:
+            return False, f"ADX={adx_value:.1f} >= {self.adx_max} (trending)"
+        if rsi_value is not None and rsi_value <= self.rsi_overbought:
+            return False, f"RSI={rsi_value:.1f} <= {self.rsi_overbought}"
+        if close is not None and bb_upper is not None and close < bb_upper:
+            return False, f"Close={close:.0f} < BB_upper={bb_upper:.0f}"
+        return True, "OK"
+
+
+# ---------------------------------------------------------------------------
+# Mean Reversion: Take Profit
+# ---------------------------------------------------------------------------
+
+class MRTakeProfit:
+    """Take profit at Bollinger Band middle (SMA20) for mean reversion."""
+
+    def should_take_profit(self, side, current_price, bb_middle):
+        if bb_middle is None or current_price <= 0:
+            return False
+        if side == "LONG" and current_price >= bb_middle:
+            return True
+        if side == "SHORT" and current_price <= bb_middle:
+            return True
+        return False

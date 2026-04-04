@@ -21,14 +21,18 @@ from datetime import datetime, timezone, timedelta
 from urllib.request import Request, urlopen
 from dataclasses import dataclass, field
 
-from indicators import atr, rsi, adx, momentum, realized_volatility
+from indicators import atr, rsi, adx, momentum, realized_volatility, bollinger_bands
 from risk_manager import (
     VolatilityRegime, PositionSizer, DynamicStopLoss,
     ScaleOutManager, EntryFilter, AdaptiveThreshold,
+    MRStopLoss, MREntryFilter, MRTakeProfit,
 )
 
 try:
-    from ml_model import FeatureBuilder, SignalPredictor, features_to_matrix
+    from ml_model import (
+        FeatureBuilder, SignalPredictor, features_to_matrix,
+        MRFeatureBuilder, MRSignalPredictor,
+    )
     HAS_ML = True
 except ImportError:
     HAS_ML = False
@@ -782,6 +786,366 @@ def backtest_v4_hybrid(data, initial_capital=1_000_000, capital_ratio=0.90,
 
 
 # ---------------------------------------------------------------------------
+# V5 Dual Strategy (Momentum + Mean Reversion)
+# ---------------------------------------------------------------------------
+
+def backtest_v5_multi(data, initial_capital=1_000_000, label=None):
+    """V5: Dual strategy — Momentum (ADX>=20) + Mean Reversion (ADX<20).
+
+    Momentum priority: if MR position open and momentum signal fires,
+    close MR and open momentum.
+    """
+    if not HAS_ML:
+        print("ERROR: ml_model not available. pip install xgboost")
+        sys.exit(1)
+
+    name = label or "V5 Dual (MOM+MR)"
+    result = BacktestResult(name=name, initial_capital=initial_capital)
+    closes = data["close"]
+    highs = data["high"]
+    lows = data["low"]
+    volumes = data["volume"]
+    timestamps = data["timestamps"]
+    n = len(closes)
+
+    # === Momentum params (improved V4) ===
+    MOM_CAP = 0.90
+    MOM_ADX_TH = 20.0  # lowered from 25
+    MOM_ML_SKIP = 0.35
+    MOM_ML_BOOST = 0.55
+    LB_L = 72
+    LB_S = 24
+    LB_12 = 12  # new 12h lookback
+
+    # === MR params ===
+    MR_CAP = 0.45
+    MR_TIME_STOP = 8  # hours
+    MR_ADX_EXIT = 25.0  # exit MR if ADX rises above this
+
+    # Risk modules
+    vol_regime_cls = VolatilityRegime()
+    mom_sizer = PositionSizer(capital_ratio=MOM_CAP,
+                               equity_drawdown_levels=[(1.0, 1.0)])
+    mr_sizer = PositionSizer(capital_ratio=MR_CAP,
+                              equity_drawdown_levels=[(1.0, 1.0)])
+    mom_sl = DynamicStopLoss(atr_multiplier=2.0)
+    mr_sl_mgr = MRStopLoss()
+    mom_entry = EntryFilter(adx_threshold=MOM_ADX_TH, enable_rsi=True)
+    mr_entry = MREntryFilter(adx_max=MOM_ADX_TH)
+    mr_tp = MRTakeProfit()
+    adapt_th = AdaptiveThreshold()
+
+    # Pre-compute indicators
+    print("  Computing indicators...")
+    atr_arr = atr(highs, lows, closes, period=14)
+    rsi_arr = rsi(closes, period=14)
+    adx_arr, _, _ = adx(highs, lows, closes, period=14)
+    rvol_arr = realized_volatility(closes, period=30)
+    rvol_annual = rvol_arr * math.sqrt(24 * 365)
+    bb_upper, bb_middle, bb_lower = bollinger_bands(closes, period=20)
+
+    # Build ML features (momentum model)
+    print("  Building ML features (momentum)...")
+    fb_mom = FeatureBuilder()
+    feat_mom = fb_mom.build(closes, highs, lows, volumes, timestamps)
+    labels_mom = fb_mom.build_labels(closes, horizon=12, threshold=0.01)
+    X_mom, valid_mom = features_to_matrix(feat_mom, fb_mom.feature_names)
+    label_valid_mom = np.isfinite(labels_mom)
+    full_mask_mom = valid_mom & label_valid_mom
+
+    # Build ML features (MR model)
+    print("  Building ML features (MR)...")
+    fb_mr = MRFeatureBuilder()
+    feat_mr = fb_mr.build(closes, highs, lows, volumes, timestamps)
+    labels_mr = fb_mr.build_labels(closes, horizon=3, threshold=0.005)
+    X_mr, valid_mr = features_to_matrix(feat_mr, fb_mr.feature_names)
+    label_valid_mr = np.isfinite(labels_mr)
+    full_mask_mr = valid_mr & label_valid_mr
+
+    # Walk-forward ML
+    train_hours = 24 * 180
+    embargo = 24 * 7
+    retrain_interval = 24 * 30
+    pred_mom = None
+    pred_mr = None
+    last_train_mom = 0
+    last_train_mr = 0
+
+    equity = initial_capital
+    peak_equity = initial_capital
+    position = None  # {side, size, entry, peak/trough, bar, strategy: 'MOM'|'MR'}
+
+    # Stats
+    mom_trades = 0
+    mr_trades = 0
+    mom_skipped = 0
+    mr_skipped = 0
+    mr_tp_count = 0
+    mr_time_stop = 0
+    mr_regime_exit = 0
+
+    print("  Running V5 dual backtest...")
+
+    for i in range(LB_L, n):
+        result.equity_curve.append(equity)
+        price = closes[i]
+
+        # Retrain momentum model
+        if (pred_mom is None or i - last_train_mom >= retrain_interval) and i >= train_hours:
+            ts, te = max(0, i - train_hours), i - embargo
+            if te > ts + 100:
+                idx = np.arange(ts, te)
+                m = full_mask_mom[idx]
+                Xt, yt = X_mom[idx[m]], labels_mom[idx[m]]
+                if len(Xt) >= 100:
+                    pred_mom = SignalPredictor()
+                    pred_mom.train(Xt, yt)
+                    last_train_mom = i
+
+        # Retrain MR model
+        if (pred_mr is None or i - last_train_mr >= retrain_interval) and i >= train_hours:
+            ts, te = max(0, i - train_hours), i - embargo
+            if te > ts + 100:
+                idx = np.arange(ts, te)
+                m = full_mask_mr[idx]
+                Xt, yt = X_mr[idx[m]], labels_mr[idx[m]]
+                if len(Xt) >= 100:
+                    pred_mr = MRSignalPredictor()
+                    pred_mr.train(Xt, yt)
+                    last_train_mr = i
+
+        # Current indicators
+        cur_atr = atr_arr[i] if not np.isnan(atr_arr[i]) else None
+        cur_rsi = rsi_arr[i] if not np.isnan(rsi_arr[i]) else None
+        cur_adx = adx_arr[i] if not np.isnan(adx_arr[i]) else None
+        cur_rvol = rvol_annual[i] if not np.isnan(rvol_annual[i]) else None
+        cur_bb_upper = bb_upper[i] if not np.isnan(bb_upper[i]) else None
+        cur_bb_middle = bb_middle[i] if not np.isnan(bb_middle[i]) else None
+        cur_bb_lower = bb_lower[i] if not np.isnan(bb_lower[i]) else None
+
+        regime = vol_regime_cls.classify(cur_rvol)
+        threshold = adapt_th.get_threshold(regime)
+
+        # Momentum signals
+        mom_l = (price - closes[i - LB_L]) / closes[i - LB_L]
+        mom_s = (price - closes[i - LB_S]) / closes[i - LB_S] if i >= LB_S else None
+        mom_12 = (price - closes[i - LB_12]) / closes[i - LB_12] if i >= LB_12 else None
+
+        # Dual-timeframe momentum: (72h>TH AND 24h>0) OR (24h>TH AND 12h>0)
+        def mom_long_signal():
+            cond_a = mom_l > threshold and (mom_s is not None and mom_s > 0)
+            cond_b = (mom_s is not None and mom_s > threshold and
+                      mom_12 is not None and mom_12 > 0)
+            return cond_a or cond_b
+
+        def mom_short_signal():
+            cond_a = mom_l < -threshold and (mom_s is not None and mom_s < 0)
+            cond_b = (mom_s is not None and mom_s < -threshold and
+                      mom_12 is not None and mom_12 < 0)
+            return cond_a or cond_b
+
+        # === Check for momentum signal (can override MR position) ===
+        mom_direction = None
+        if mom_long_signal():
+            ok, _ = mom_entry.check_long(adx_value=cur_adx, rsi_value=cur_rsi)
+            if ok:
+                mom_direction = "LONG"
+        elif mom_short_signal():
+            ok, _ = mom_entry.check_short(adx_value=cur_adx, rsi_value=cur_rsi)
+            if ok:
+                mom_direction = "SHORT"
+
+        # ML filter for momentum
+        if mom_direction is not None and pred_mom is not None and pred_mom.is_ready and valid_mom[i]:
+            prob = float(pred_mom.predict_proba(X_mom[i:i+1], direction=mom_direction)[0])
+            if prob < MOM_ML_SKIP:
+                mom_skipped += 1
+                mom_direction = None
+
+        # If we have MR position and momentum signal fires → close MR, open momentum
+        if position is not None and position["strategy"] == "MR" and mom_direction is not None:
+            # Close MR position
+            if position["side"] == "LONG":
+                pnl_pct = (price - position["entry"]) / position["entry"]
+            else:
+                pnl_pct = (position["entry"] - price) / position["entry"]
+            pnl_jpy = pnl_pct * position["entry"] * position["size"]
+            equity += pnl_jpy
+            result.trades.append(Trade(
+                position["side"], position["entry"], price,
+                position["bar"], i, position["size"], pnl_pct, pnl_jpy, "MR→MOM"))
+            mr_regime_exit += 1
+            position = None
+
+        if position is None:
+            if mom_direction is not None:
+                # === Momentum entry ===
+                peak_equity = max(peak_equity, equity)
+                size_mult = 1.0
+                if pred_mom is not None and pred_mom.is_ready and valid_mom[i]:
+                    prob = float(pred_mom.predict_proba(X_mom[i:i+1], direction=mom_direction)[0])
+                    if prob > MOM_ML_BOOST:
+                        size_mult = 1.2
+                size = mom_sizer.calculate(
+                    equity, price, regime, peak_equity, equity, min_size=0.001) * size_mult
+                if size > 0.001:
+                    if mom_direction == "LONG":
+                        position = {"side": "LONG", "size": size, "entry": price,
+                                    "peak": price, "bar": i, "strategy": "MOM"}
+                    else:
+                        position = {"side": "SHORT", "size": size, "entry": price,
+                                    "trough": price, "bar": i, "strategy": "MOM"}
+                    mom_trades += 1
+
+            else:
+                # === MR entry (only when no momentum signal) ===
+                mr_direction = None
+                if cur_bb_lower is not None and cur_bb_upper is not None:
+                    ok_l, _ = mr_entry.check_long(cur_adx, cur_rsi, price, cur_bb_lower)
+                    ok_s, _ = mr_entry.check_short(cur_adx, cur_rsi, price, cur_bb_upper)
+                    if ok_l:
+                        mr_direction = "LONG"
+                    elif ok_s:
+                        mr_direction = "SHORT"
+
+                # ML filter for MR
+                if mr_direction is not None and pred_mr is not None and pred_mr.is_ready and valid_mr[i]:
+                    prob = float(pred_mr.predict_proba(X_mr[i:i+1], direction=mr_direction)[0])
+                    if prob < MOM_ML_SKIP:
+                        mr_skipped += 1
+                        mr_direction = None
+
+                if mr_direction is not None:
+                    peak_equity = max(peak_equity, equity)
+                    size = mr_sizer.calculate(
+                        equity, price, regime, peak_equity, equity, min_size=0.001)
+                    if size > 0.001:
+                        if mr_direction == "LONG":
+                            position = {"side": "LONG", "size": size, "entry": price,
+                                        "peak": price, "bar": i, "strategy": "MR"}
+                        else:
+                            position = {"side": "SHORT", "size": size, "entry": price,
+                                        "trough": price, "bar": i, "strategy": "MR"}
+                        mr_trades += 1
+
+        elif position["strategy"] == "MOM":
+            # === Momentum position management ===
+            stop_pct = mom_sl.stop_distance_pct(cur_atr, price, regime)
+            should_close = False
+            if position["side"] == "LONG":
+                position["peak"] = max(position["peak"], price)
+                if (price - position["peak"]) / position["peak"] <= -stop_pct:
+                    should_close = True
+            else:
+                position["trough"] = min(position["trough"], price)
+                if (price - position["trough"]) / position["trough"] >= stop_pct:
+                    should_close = True
+
+            if should_close:
+                pnl_pct = ((price - position["entry"]) / position["entry"]
+                           if position["side"] == "LONG"
+                           else (position["entry"] - price) / position["entry"])
+                pnl_jpy = pnl_pct * position["entry"] * position["size"]
+                equity += pnl_jpy
+                result.trades.append(Trade(
+                    position["side"], position["entry"], price,
+                    position["bar"], i, position["size"], pnl_pct, pnl_jpy, "MOM_SL"))
+                position = None
+
+        elif position["strategy"] == "MR":
+            # === MR position management ===
+            hours_held = i - position["bar"]
+
+            # 1. Take profit at BB middle
+            if mr_tp.should_take_profit(position["side"], price, cur_bb_middle):
+                pnl_pct = ((price - position["entry"]) / position["entry"]
+                           if position["side"] == "LONG"
+                           else (position["entry"] - price) / position["entry"])
+                pnl_jpy = pnl_pct * position["entry"] * position["size"]
+                equity += pnl_jpy
+                result.trades.append(Trade(
+                    position["side"], position["entry"], price,
+                    position["bar"], i, position["size"], pnl_pct, pnl_jpy, "MR_TP"))
+                mr_tp_count += 1
+                position = None
+                continue
+
+            # 2. Time stop
+            if hours_held >= MR_TIME_STOP:
+                pnl_pct = ((price - position["entry"]) / position["entry"]
+                           if position["side"] == "LONG"
+                           else (position["entry"] - price) / position["entry"])
+                pnl_jpy = pnl_pct * position["entry"] * position["size"]
+                equity += pnl_jpy
+                result.trades.append(Trade(
+                    position["side"], position["entry"], price,
+                    position["bar"], i, position["size"], pnl_pct, pnl_jpy, "MR_TIME"))
+                mr_time_stop += 1
+                position = None
+                continue
+
+            # 3. Regime change exit
+            if cur_adx is not None and cur_adx > MR_ADX_EXIT:
+                pnl_pct = ((price - position["entry"]) / position["entry"]
+                           if position["side"] == "LONG"
+                           else (position["entry"] - price) / position["entry"])
+                pnl_jpy = pnl_pct * position["entry"] * position["size"]
+                equity += pnl_jpy
+                result.trades.append(Trade(
+                    position["side"], position["entry"], price,
+                    position["bar"], i, position["size"], pnl_pct, pnl_jpy, "MR_REGIME"))
+                mr_regime_exit += 1
+                position = None
+                continue
+
+            # 4. Trailing stop
+            stop_pct = mr_sl_mgr.stop_distance_pct(cur_atr, price)
+            should_close = False
+            if position["side"] == "LONG":
+                position["peak"] = max(position["peak"], price)
+                if (price - position["peak"]) / position["peak"] <= -stop_pct:
+                    should_close = True
+            else:
+                position["trough"] = min(position["trough"], price)
+                if (price - position["trough"]) / position["trough"] >= stop_pct:
+                    should_close = True
+
+            if should_close:
+                pnl_pct = ((price - position["entry"]) / position["entry"]
+                           if position["side"] == "LONG"
+                           else (position["entry"] - price) / position["entry"])
+                pnl_jpy = pnl_pct * position["entry"] * position["size"]
+                equity += pnl_jpy
+                result.trades.append(Trade(
+                    position["side"], position["entry"], price,
+                    position["bar"], i, position["size"], pnl_pct, pnl_jpy, "MR_SL"))
+                position = None
+
+    # Close remaining
+    if position:
+        price = closes[-1]
+        pnl_pct = ((price - position["entry"]) / position["entry"]
+                   if position["side"] == "LONG"
+                   else (position["entry"] - price) / position["entry"])
+        pnl_jpy = pnl_pct * position["entry"] * position["size"]
+        equity += pnl_jpy
+        result.trades.append(Trade(
+            position["side"], position["entry"], price,
+            position["bar"], n - 1, position["size"], pnl_pct, pnl_jpy, "END"))
+    result.equity_curve.append(equity)
+
+    # Stats
+    total = mom_trades + mr_trades
+    print(f"\n  V5 Strategy Stats:")
+    print(f"    Momentum trades: {mom_trades} (skipped by ML: {mom_skipped})")
+    print(f"    MR trades:       {mr_trades} (skipped by ML: {mr_skipped})")
+    print(f"    Total trades:    {total}")
+    print(f"    MR exits → TP: {mr_tp_count}, Time: {mr_time_stop}, Regime: {mr_regime_exit}")
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -797,6 +1161,8 @@ def main():
                         help="Run V3 aggressive sweep: vary ADX, MTF, SL multiplier")
     parser.add_argument("--v4", action="store_true",
                         help="Run V4 hybrid (V3 + XGBoost) vs V3 comparison")
+    parser.add_argument("--v5", action="store_true",
+                        help="Run V5 dual (MOM+MR) vs V4 comparison")
     args = parser.parse_args()
 
     data = fetch_hourly_data(args.days)
@@ -804,6 +1170,55 @@ def main():
     if len(data["close"]) < 100:
         print("ERROR: Not enough data fetched.")
         sys.exit(1)
+
+    # === V5 dual strategy comparison ===
+    if args.v5:
+        print("\nRunning V1 baseline...")
+        r1 = backtest_v1(data, args.capital)
+
+        EQ_NONE = [(1.0, 1.0)]
+        print("\nRunning V4 Boost (best V4)...")
+        r4 = backtest_v4_hybrid(data, args.capital, capital_ratio=0.90,
+                                adx_th=25, sl_mult=2.5,
+                                prob_full=0.55, prob_half=0.40,
+                                label="V4 Boost (0.55/0.40)")
+
+        print("\nRunning V5 Dual (MOM+MR)...")
+        r5 = backtest_v5_multi(data, args.capital)
+
+        all_results = [r1, r4, r5]
+
+        print(f"\n{'='*100}")
+        print(f"  V4 vs V5 DUAL STRATEGY COMPARISON")
+        print(f"{'='*100}")
+        hdr = f"{'Strategy':<42} {'Return%':>9} {'Annual%':>9} {'Trades':>7} {'WinR%':>7} {'MaxDD%':>8} {'Sharpe':>7}"
+        print(hdr)
+        print("-" * 100)
+
+        for r in all_results:
+            years = len(r.equity_curve) / (24 * 365) if r.equity_curve else 1
+            ann = ((r.equity_curve[-1] / r.initial_capital) ** (1 / years) - 1) * 100 if years > 0 else 0
+            print(f"{r.name:<42} {r.total_return:>8.1f}% {ann:>8.1f}% {r.num_trades:>7d} {r.win_rate:>6.1f}% {r.max_drawdown:>7.1f}% {r.sharpe_ratio:>7.2f}")
+
+        print(f"{'='*100}")
+
+        # MR breakdown
+        mr_trades = [t for t in r5.trades if t.reason.startswith("MR")]
+        mom_trades = [t for t in r5.trades if t.reason.startswith("MOM") or t.reason == "END" or t.reason == "MR→MOM"]
+        if mr_trades:
+            mr_wins = sum(1 for t in mr_trades if t.pnl_pct > 0)
+            mr_pnl = sum(t.pnl_jpy for t in mr_trades)
+            print(f"\n  MR Breakdown: {len(mr_trades)} trades, "
+                  f"WR={mr_wins/len(mr_trades)*100:.1f}%, "
+                  f"PnL={mr_pnl:+,.0f} JPY")
+        if mom_trades:
+            mom_wins = sum(1 for t in mom_trades if t.pnl_pct > 0)
+            mom_pnl = sum(t.pnl_jpy for t in mom_trades)
+            print(f"  MOM Breakdown: {len(mom_trades)} trades, "
+                  f"WR={mom_wins/len(mom_trades)*100:.1f}%, "
+                  f"PnL={mom_pnl:+,.0f} JPY")
+
+        return
 
     # === V4 hybrid comparison ===
     if args.v4:

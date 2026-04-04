@@ -151,6 +151,25 @@ def momentum(closes, lookback):
     return result
 
 
+def bollinger_bands(closes, period=20, num_std=2.0):
+    """Bollinger Bands: upper, middle (SMA), lower.
+
+    Returns (upper, middle, lower) as numpy arrays.
+    """
+    n = len(closes)
+    upper = np.full(n, np.nan)
+    middle = np.full(n, np.nan)
+    lower = np.full(n, np.nan)
+    for i in range(period - 1, n):
+        window = closes[i - period + 1:i + 1]
+        ma = np.mean(window)
+        std = np.std(window, ddof=1)
+        middle[i] = ma
+        upper[i] = ma + num_std * std
+        lower[i] = ma - num_std * std
+    return upper, middle, lower
+
+
 def bollinger_band_width(closes, period=20, num_std=2.0):
     """Bollinger Band width as percentage of middle band.
 

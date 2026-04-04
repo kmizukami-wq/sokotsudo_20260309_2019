@@ -19,7 +19,7 @@ except ImportError:
 
 from indicators import (
     atr, rsi, adx, momentum, bollinger_band_width,
-    realized_volatility, macd, sma,
+    realized_volatility, macd, sma, bollinger_bands,
 )
 
 
@@ -124,6 +124,18 @@ class FeatureBuilder:
             features["volume_ratio"] = np.full(n, np.nan)
             features["volume_trend"] = np.full(n, np.nan)
 
+        # --- New momentum features (2) ---
+        sma_8 = sma(closes, 8)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            features["funding_rate_proxy"] = (closes - sma_8) / sma_8
+
+        rvol = realized_volatility(closes, period=30)
+        vol_speed = np.full(n, np.nan)
+        for i in range(6, n):
+            if not np.isnan(rvol[i]) and not np.isnan(rvol[i - 6]) and rvol[i - 6] > 0:
+                vol_speed[i] = (rvol[i] - rvol[i - 6]) / rvol[i - 6]
+        features["vol_regime_speed"] = vol_speed
+
         # --- Time features (3) ---
         if timestamps is not None and len(timestamps) == n:
             from datetime import datetime, timezone
@@ -187,6 +199,7 @@ class FeatureBuilder:
             "adx_14", "plus_di_minus_di", "trend_consistency",
             "volume_ratio", "volume_trend",
             "hour_sin", "hour_cos", "day_of_week",
+            "funding_rate_proxy", "vol_regime_speed",
         ]
 
 
@@ -291,6 +304,103 @@ class SignalPredictor:
             zip(names, importances),
             key=lambda x: x[1], reverse=True,
         ))
+
+
+class MRFeatureBuilder:
+    """Feature builder for mean reversion strategy.
+
+    Extends base features with BB position, RSI speed, and mean distance.
+    """
+
+    MIN_BARS = 200
+
+    def __init__(self):
+        self._base = FeatureBuilder()
+
+    def build(self, closes, highs, lows, volumes, timestamps=None):
+        features = self._base.build(closes, highs, lows, volumes, timestamps)
+        n = len(closes)
+
+        # BB position: (close - BB_lower) / (BB_upper - BB_lower)
+        bb_upper, bb_middle, bb_lower = bollinger_bands(closes, period=20)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            bb_range = bb_upper - bb_lower
+            features["bb_position"] = np.where(
+                bb_range > 0, (closes - bb_lower) / bb_range, 0.5
+            )
+
+        # RSI speed: RSI[i] - RSI[i-3]
+        rsi_arr = features["rsi_14"]
+        rsi_speed = np.full(n, np.nan)
+        for i in range(3, n):
+            if not np.isnan(rsi_arr[i]) and not np.isnan(rsi_arr[i - 3]):
+                rsi_speed[i] = rsi_arr[i] - rsi_arr[i - 3]
+        features["rsi_speed"] = rsi_speed
+
+        # Mean distance: (close - SMA_20) / SMA_20
+        sma_20 = sma(closes, 20)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            features["mean_distance"] = (closes - sma_20) / sma_20
+
+        return features
+
+    def build_labels(self, closes, horizon=3, threshold=0.005):
+        return self._base.build_labels(closes, horizon=horizon, threshold=threshold)
+
+    @property
+    def feature_names(self):
+        return self._base.feature_names + [
+            "bb_position", "rsi_speed", "mean_distance",
+        ]
+
+
+class MRSignalPredictor:
+    """XGBoost predictor for mean reversion signals."""
+
+    def __init__(self, model_path=None):
+        self.model = None
+        self.feature_builder = MRFeatureBuilder()
+        self.model_path = model_path or os.path.expanduser("~/xgb_model_mr.pkl")
+        self.is_ready = False
+
+    def train(self, X, y):
+        if not HAS_XGBOOST:
+            raise ImportError("xgboost not installed")
+        y_mapped = y + 1
+        self.model = XGBClassifier(
+            n_estimators=100, max_depth=4, learning_rate=0.1,
+            subsample=0.8, colsample_bytree=0.8, min_child_weight=5,
+            reg_alpha=0.1, reg_lambda=1.0, objective="multi:softprob",
+            num_class=3, eval_metric="mlogloss", random_state=42,
+            n_jobs=1, verbosity=0,
+        )
+        self.model.fit(X, y_mapped)
+        self.is_ready = True
+
+    def predict_proba(self, X, direction="LONG"):
+        if not self.is_ready or self.model is None:
+            return np.full(X.shape[0], 0.5) if len(X.shape) > 1 else 0.5
+        probs = self.model.predict_proba(X)
+        if direction == "LONG":
+            p_dir, p_opp = probs[:, 2], probs[:, 0]
+        else:
+            p_dir, p_opp = probs[:, 0], probs[:, 2]
+        denom = p_dir + p_opp
+        return np.where(denom > 0, p_dir / denom, 0.5)
+
+    def save(self, path=None):
+        path = path or self.model_path
+        with open(path, "wb") as f:
+            pickle.dump(self.model, f)
+
+    def load(self, path=None):
+        path = path or self.model_path
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                self.model = pickle.load(f)
+            self.is_ready = True
+            return True
+        return False
 
 
 def features_to_matrix(features, feature_names):
