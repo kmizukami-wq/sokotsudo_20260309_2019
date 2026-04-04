@@ -91,7 +91,7 @@ LB_SHORT = 288         # 24h lookback in 5-min bars (24*12) — confirmation
 WARMUP_DAYS = 4        # Days of history to fetch on startup
 
 # Risk parameters
-CAPITAL_RATIO = 0.90   # V3 optimal: 90% of collateral per trade
+CAPITAL_RATIO = 0.35   # Half-Kelly safe: ruin-proof with 2x leverage + B2.2
 MAX_LOSS_RATIO = 0.15  # Emergency stop at -15%
 
 # XGBoost hybrid thresholds (V4+ optimized via 34k param sweep)
