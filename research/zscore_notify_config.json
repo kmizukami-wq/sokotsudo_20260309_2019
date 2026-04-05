@@ -59,6 +59,78 @@
       "stop_z": 4.0,
       "risk_pct": 15,
       "note": "最も流動性高い"
+    },
+    "NZD/JPY": {
+      "enabled": true,
+      "window": 30,
+      "entry_z": 1.5,
+      "exit_z": 0.5,
+      "stop_z": 4.0,
+      "risk_pct": 15,
+      "note": "S級。27年勝率100%,MaxDD 0%,CAGR510%"
+    },
+    "AUD/NZD": {
+      "enabled": true,
+      "window": 30,
+      "entry_z": 1.5,
+      "exit_z": 0.5,
+      "stop_z": 4.0,
+      "risk_pct": 15,
+      "note": "オセアニア。損切1回,MaxDD24.8%"
+    },
+    "AUD/JPY": {
+      "enabled": true,
+      "window": 30,
+      "entry_z": 1.5,
+      "exit_z": 0.5,
+      "stop_z": 4.0,
+      "risk_pct": 15,
+      "note": "損切3回,MaxDD25.3%。全ペア中最多損切"
+    },
+    "NZD/USD": {
+      "enabled": true,
+      "window": 30,
+      "entry_z": 1.5,
+      "exit_z": 0.5,
+      "stop_z": 4.0,
+      "risk_pct": 15,
+      "note": "勝率100%,MaxDD 0%,CAGR495%"
+    },
+    "AUD/USD": {
+      "enabled": true,
+      "window": 30,
+      "entry_z": 1.5,
+      "exit_z": 0.5,
+      "stop_z": 4.0,
+      "risk_pct": 15,
+      "note": "勝率100%,MaxDD 0%,CAGR474%"
+    },
+    "GBP/JPY": {
+      "enabled": true,
+      "window": 30,
+      "entry_z": 1.5,
+      "exit_z": 0.5,
+      "stop_z": 4.0,
+      "risk_pct": 15,
+      "note": "勝率100%,MaxDD 0%,CAGR476%"
+    },
+    "EUR/AUD": {
+      "enabled": true,
+      "window": 30,
+      "entry_z": 1.5,
+      "exit_z": 0.5,
+      "stop_z": 4.0,
+      "risk_pct": 15,
+      "note": "損切1回,MaxDD17.1%,CAGR465%"
+    },
+    "EUR/NZD": {
+      "enabled": true,
+      "window": 30,
+      "entry_z": 1.5,
+      "exit_z": 0.5,
+      "stop_z": 4.0,
+      "risk_pct": 15,
+      "note": "損切1回,MaxDD19.1%,CAGR508%"
     }
   }
 }

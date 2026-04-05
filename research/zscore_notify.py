@@ -106,7 +106,7 @@ def fetch_prices(pairs_config: dict, days: int = 90) -> pd.DataFrame:
     end = datetime.now().strftime('%Y-%m-%d')
     start = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
 
-    url = f"https://api.frankfurter.app/{start}..{end}?from=EUR&to=USD,GBP,JPY"
+    url = f"https://api.frankfurter.app/{start}..{end}?from=EUR&to=USD,GBP,JPY,AUD,NZD"
     try:
         r = requests.get(url, timeout=15)
         if r.status_code != 200:
@@ -118,12 +118,22 @@ def fetch_prices(pairs_config: dict, days: int = 90) -> pd.DataFrame:
             usd = rates.get('USD')
             gbp = rates.get('GBP')
             jpy = rates.get('JPY')
+            aud = rates.get('AUD')
+            nzd = rates.get('NZD')
             row = {'date': date_str}
             if usd: row['EUR/USD'] = usd
             if gbp: row['EUR/GBP'] = gbp
             if jpy: row['EUR/JPY'] = jpy
+            if aud: row['EUR/AUD'] = aud
+            if nzd: row['EUR/NZD'] = nzd
             if usd and gbp: row['GBP/USD'] = usd / gbp
             if usd and jpy: row['USD/JPY'] = jpy / usd
+            if aud and nzd: row['AUD/NZD'] = nzd / aud
+            if aud and jpy: row['AUD/JPY'] = jpy / aud
+            if nzd and jpy: row['NZD/JPY'] = jpy / nzd
+            if aud and usd: row['AUD/USD'] = usd / aud
+            if nzd and usd: row['NZD/USD'] = usd / nzd
+            if gbp and jpy: row['GBP/JPY'] = jpy / gbp
             rows.append(row)
 
         df = pd.DataFrame(rows)
