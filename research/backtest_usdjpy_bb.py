@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-USD/JPY BB逆張り＋押し目 × 3段マーチン バックテスト
+FX BB逆張り＋押し目 × 3段マーチン バックテスト（複数通貨ペア対応）
 実チャートデータ（yfinance）を使用
 """
 
@@ -15,10 +15,22 @@ from collections import defaultdict
 # ============================================================
 INITIAL_CAPITAL = 1_000_000  # 初期資金（円）
 RISK_PER_TRADE = 0.008       # 1トレードリスク 0.8%
-RR_RATIO = 2.0               # リスクリワード比（2.5→2.0に引き下げ）
+RR_RATIO = 2.0               # リスクリワード比
 ATR_FILTER_MULT = 2.2        # ATRフィルター倍率
-SPREAD_PIPS = 0.3             # 想定スプレッド（pips）
-SPREAD = SPREAD_PIPS * 0.01  # 価格ベース（USD/JPYなので0.01=1pip）
+
+# ペア別設定
+PAIRS = {
+    'USDJPY=X': {'name': 'USD/JPY', 'pip': 0.01,  'spread_pips': 0.3, 'quote_to_jpy': 1.0},
+    'EURUSD=X': {'name': 'EUR/USD', 'pip': 0.0001, 'spread_pips': 0.2, 'quote_to_jpy': 150.0},
+    'GBPUSD=X': {'name': 'GBP/USD', 'pip': 0.0001, 'spread_pips': 0.3, 'quote_to_jpy': 150.0},
+    'EURJPY=X': {'name': 'EUR/JPY', 'pip': 0.01,  'spread_pips': 0.5, 'quote_to_jpy': 1.0},
+    'GBPJPY=X': {'name': 'GBP/JPY', 'pip': 0.01,  'spread_pips': 0.8, 'quote_to_jpy': 1.0},
+    'AUDUSD=X': {'name': 'AUD/USD', 'pip': 0.0001, 'spread_pips': 0.4, 'quote_to_jpy': 150.0},
+    'AUDJPY=X': {'name': 'AUD/JPY', 'pip': 0.01,  'spread_pips': 0.7, 'quote_to_jpy': 1.0},
+    'NZDUSD=X': {'name': 'NZD/USD', 'pip': 0.0001, 'spread_pips': 0.5, 'quote_to_jpy': 150.0},
+    'USDCHF=X': {'name': 'USD/CHF', 'pip': 0.0001, 'spread_pips': 0.4, 'quote_to_jpy': 170.0},
+    'USDCAD=X': {'name': 'USD/CAD', 'pip': 0.0001, 'spread_pips': 0.5, 'quote_to_jpy': 110.0},
+}
 
 # シグナル別SL倍率（動的SL）
 SL_ATR_MULT = {
@@ -180,8 +192,8 @@ class RowProxy:
         return self._data.get(key, default)
 
 
-def run_backtest(df, label=""):
-    """メインバックテストループ"""
+def run_backtest(df, spread, quote_to_jpy=1.0, label=""):
+    """メインバックテストループ（spread: 価格ベースのスプレッド, quote_to_jpy: 損益の円換算レート）"""
     capital = float(INITIAL_CAPITAL)
     peak_capital = capital
     month_start_capital = capital
@@ -253,12 +265,12 @@ def run_backtest(df, label=""):
                 # BE発動: 1:1 RR到達
                 if not position['be_activated'] and unrealized_move >= sl_distance * BE_TRIGGER_RR:
                     position['be_activated'] = True
-                    position['sl'] = entry + SPREAD  # BEに移動（スプレッド分のみ）
+                    position['sl'] = entry + spread  # BEに移動（スプレッド分のみ）
                     sl = position['sl']
 
                 # 部分利確: 1:1.5 RR到達
                 if not position['partial_closed'] and unrealized_move >= sl_distance * PARTIAL_CLOSE_RR:
-                    partial_pnl = (sl_distance * PARTIAL_CLOSE_RR - SPREAD) * lots * PARTIAL_CLOSE_PCT
+                    partial_pnl = (sl_distance * PARTIAL_CLOSE_RR - spread) * lots * PARTIAL_CLOSE_PCT * quote_to_jpy
                     capital += partial_pnl
                     monthly_pnl[month_key] += partial_pnl
                     position['partial_closed'] = True
@@ -280,7 +292,7 @@ def run_backtest(df, label=""):
 
                 # SL判定
                 if low <= sl:
-                    pnl = (sl - entry - SPREAD) * lots
+                    pnl = (sl - entry - spread) * lots * quote_to_jpy
                     closed = True
                     if position['be_activated'] and not position['partial_closed']:
                         result = 'BE'
@@ -290,7 +302,7 @@ def run_backtest(df, label=""):
                         result = 'SL'
                 # TP判定
                 elif high >= tp:
-                    pnl = (tp - entry - SPREAD) * lots
+                    pnl = (tp - entry - spread) * lots * quote_to_jpy
                     closed = True
                     result = 'TP'
 
@@ -298,11 +310,11 @@ def run_backtest(df, label=""):
                 unrealized_move = entry - low
                 if not position['be_activated'] and unrealized_move >= sl_distance * BE_TRIGGER_RR:
                     position['be_activated'] = True
-                    position['sl'] = entry - SPREAD
+                    position['sl'] = entry - spread
                     sl = position['sl']
 
                 if not position['partial_closed'] and unrealized_move >= sl_distance * PARTIAL_CLOSE_RR:
-                    partial_pnl = (sl_distance * PARTIAL_CLOSE_RR - SPREAD) * lots * PARTIAL_CLOSE_PCT
+                    partial_pnl = (sl_distance * PARTIAL_CLOSE_RR - spread) * lots * PARTIAL_CLOSE_PCT * quote_to_jpy
                     capital += partial_pnl
                     monthly_pnl[month_key] += partial_pnl
                     position['partial_closed'] = True
@@ -321,7 +333,7 @@ def run_backtest(df, label=""):
                         sl = position['sl']
 
                 if high >= sl:
-                    pnl = (entry - sl - SPREAD) * lots
+                    pnl = (entry - sl - spread) * lots * quote_to_jpy
                     closed = True
                     if position['be_activated'] and not position['partial_closed']:
                         result = 'BE'
@@ -330,16 +342,16 @@ def run_backtest(df, label=""):
                     else:
                         result = 'SL'
                 elif low <= tp:
-                    pnl = (entry - tp - SPREAD) * lots
+                    pnl = (entry - tp - spread) * lots * quote_to_jpy
                     closed = True
                     result = 'TP'
 
             # 最大保有期間チェック
             if not closed and position['bars_held'] >= MAX_HOLDING_BARS:
                 if direction == 'BUY':
-                    pnl = (close - entry - SPREAD) * lots
+                    pnl = (close - entry - spread) * lots * quote_to_jpy
                 else:
-                    pnl = (entry - close - SPREAD) * lots
+                    pnl = (entry - close - spread) * lots * quote_to_jpy
                 closed = True
                 result = 'TIME'
 
@@ -411,11 +423,11 @@ def run_backtest(df, label=""):
         tp_distance = sl_distance * RR_RATIO
 
         if direction == 'BUY':
-            entry_price = close + SPREAD / 2
+            entry_price = close + spread / 2
             sl_price = entry_price - sl_distance
             tp_price = entry_price + tp_distance
         else:
-            entry_price = close - SPREAD / 2
+            entry_price = close - spread / 2
             sl_price = entry_price + sl_distance
             tp_price = entry_price - tp_distance
 
@@ -425,9 +437,9 @@ def run_backtest(df, label=""):
 
         if sl_distance <= 0:
             continue
-        lots = risk_amount_martin / sl_distance
+        lots = risk_amount_martin / (sl_distance * quote_to_jpy)
 
-        margin_required = (lots * entry_price) / 25
+        margin_required = (lots * entry_price * quote_to_jpy) / 25
         if margin_required > capital * 0.9:
             continue
 
@@ -455,10 +467,11 @@ def run_backtest(df, label=""):
 # ============================================================
 # レポート出力
 # ============================================================
-def print_report(trades, final_capital, monthly_pnl, stopped, stop_reason, label, data_rows):
+def print_report(trades, final_capital, monthly_pnl, stopped, stop_reason, label, data_rows, pair_name="", pip_value=0.01):
     """バックテスト結果を表示"""
+    price_fmt = '.3f' if pip_value >= 0.01 else '.5f'
     print(f"\n{'='*70}")
-    print(f"  USD/JPY BB逆張り＋マーチン バックテスト結果 [{label}]")
+    print(f"  {pair_name} BB逆張り＋マーチン バックテスト結果 [{label}]")
     print(f"{'='*70}")
 
     if not trades:
@@ -580,56 +593,181 @@ def print_report(trades, final_capital, monthly_pnl, stopped, stop_reason, label
     for t in recent:
         print(f"  {str(t['entry_time'])[:16]} {t['direction']:4s} "
               f"{t['signal']:12s} Stage{t['stage']} "
-              f"Entry:{t['entry_price']:.3f} SL:{t['sl']:.3f} TP:{t['tp']:.3f} "
+              f"Entry:{t['entry_price']:{price_fmt}} SL:{t['sl']:{price_fmt}} TP:{t['tp']:{price_fmt}} "
               f"→ {t['result']} ¥{t['pnl']:>+10,.0f}")
 
     print()
 
 
 # ============================================================
+# 為替レート動的取得
+# ============================================================
+def get_quote_to_jpy_rates():
+    """USD/JPY等のレートを動的取得し、quote_to_jpy変換レートを更新"""
+    rates = {}
+    try:
+        usdjpy = yf.download('USDJPY=X', period='1d', interval='1d', progress=False)
+        if isinstance(usdjpy.columns, pd.MultiIndex):
+            usdjpy.columns = usdjpy.columns.get_level_values(0)
+        usdjpy_rate = float(usdjpy['Close'].iloc[-1])
+        rates['USD'] = usdjpy_rate
+
+        chfjpy = yf.download('CHFJPY=X', period='1d', interval='1d', progress=False)
+        if isinstance(chfjpy.columns, pd.MultiIndex):
+            chfjpy.columns = chfjpy.columns.get_level_values(0)
+        rates['CHF'] = float(chfjpy['Close'].iloc[-1])
+
+        cadjpy = yf.download('CADJPY=X', period='1d', interval='1d', progress=False)
+        if isinstance(cadjpy.columns, pd.MultiIndex):
+            cadjpy.columns = cadjpy.columns.get_level_values(0)
+        rates['CAD'] = float(cadjpy['Close'].iloc[-1])
+
+        print(f"  為替レート取得: USD/JPY={rates['USD']:.1f}, CHF/JPY={rates['CHF']:.1f}, CAD/JPY={rates['CAD']:.1f}")
+    except Exception:
+        rates = {'USD': 150.0, 'CHF': 170.0, 'CAD': 110.0}
+        print(f"  為替レート取得失敗、デフォルト値使用")
+
+    # PairsのquoteToJPYを更新
+    for ticker, cfg in PAIRS.items():
+        name = cfg['name']
+        if name.endswith('/JPY'):
+            cfg['quote_to_jpy'] = 1.0
+        elif name.endswith('/USD'):
+            cfg['quote_to_jpy'] = rates.get('USD', 150.0)
+        elif name.endswith('/CHF'):
+            cfg['quote_to_jpy'] = rates.get('CHF', 170.0)
+        elif name.endswith('/CAD'):
+            cfg['quote_to_jpy'] = rates.get('CAD', 110.0)
+
+    return rates
+
+
+# ============================================================
 # メイン
 # ============================================================
 def main():
-    print("USD/JPY BB逆張り＋マーチン バックテスト")
-    print("実チャートデータ（yfinance）使用")
-    print("=" * 50)
+    print("FX BB逆張り＋マーチン バックテスト（複数通貨ペア）")
+    print("実チャートデータ（yfinance）15分足使用")
+    print("=" * 60)
 
-    configs = [
-        ("15分足（直近60日）", "60d", "15m"),
-        ("1時間足（約2.8年）", "730d", "1h"),
-    ]
+    # 為替レート動的取得
+    get_quote_to_jpy_rates()
 
-    for label, period, interval in configs:
-        print(f"\n>>> データ取得中: {label} ...")
+    results = []  # 横断比較用
+
+    for ticker, cfg in PAIRS.items():
+        pair_name = cfg['name']
+        spread = cfg['spread_pips'] * cfg['pip']
+        q2j = cfg['quote_to_jpy']
+
+        print(f"\n>>> {pair_name} データ取得中 ...")
         try:
-            df = yf.download('USDJPY=X', period=period, interval=interval, progress=False)
+            df = yf.download(ticker, period='60d', interval='15m', progress=False)
             if df.empty:
-                print(f"  データ取得失敗: {label}")
+                print(f"  データ取得失敗: {pair_name}")
                 continue
 
-            # マルチレベルカラムをフラット化
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
 
             print(f"  取得: {len(df)}本 ({df.index[0]} 〜 {df.index[-1]})")
 
-            # インジケーター計算
             df = calc_indicators(df)
-
-            # NaN行を除外してバックテスト対象を特定
             valid = df.dropna(subset=['SMA200', 'ATR_MA100'])
             print(f"  有効データ: {len(valid)}本（SMA200算出後）")
 
-            # バックテスト実行
-            trades, final_cap, monthly_pnl, stopped, stop_reason = run_backtest(df)
+            trades, final_cap, monthly_pnl, stopped, stop_reason = run_backtest(
+                df, spread=spread, quote_to_jpy=q2j
+            )
 
-            # レポート
-            print_report(trades, final_cap, monthly_pnl, stopped, stop_reason, label, len(df))
+            print_report(trades, final_cap, monthly_pnl, stopped, stop_reason,
+                        "15分足", len(df), pair_name=pair_name, pip_value=cfg['pip'])
+
+            # 結果蓄積
+            if trades:
+                total = len(trades)
+                wins = sum(1 for t in trades if t['pnl'] > 0)
+                gp = sum(t['pnl'] for t in trades if t['pnl'] > 0)
+                gl = abs(sum(t['pnl'] for t in trades if t['pnl'] < 0))
+                pf = gp / gl if gl > 0 else float('inf')
+
+                peak = INITIAL_CAPITAL
+                max_dd = 0
+                running = INITIAL_CAPITAL
+                for t in trades:
+                    running += t['pnl']
+                    if running > peak:
+                        peak = running
+                    dd = (peak - running) / peak
+                    if dd > max_dd:
+                        max_dd = dd
+
+                net = final_cap - INITIAL_CAPITAL
+
+                # 月利中央値
+                if monthly_pnl:
+                    months_sorted = sorted(monthly_pnl.keys())
+                    run_cap = INITIAL_CAPITAL
+                    m_rets = []
+                    for m in months_sorted:
+                        r = monthly_pnl[m] / run_cap if run_cap > 0 else 0
+                        m_rets.append(r)
+                        run_cap += monthly_pnl[m]
+                    med_monthly = np.median(m_rets)
+                else:
+                    med_monthly = 0
+
+                results.append({
+                    'pair': pair_name,
+                    'trades': total,
+                    'win_rate': wins / total * 100,
+                    'pf': pf,
+                    'max_dd': max_dd,
+                    'net_pnl': net,
+                    'net_pct': net / INITIAL_CAPITAL * 100,
+                    'med_monthly': med_monthly,
+                    'stopped': stopped,
+                })
+            else:
+                results.append({
+                    'pair': pair_name, 'trades': 0, 'win_rate': 0, 'pf': 0,
+                    'max_dd': 0, 'net_pnl': 0, 'net_pct': 0, 'med_monthly': 0, 'stopped': False,
+                })
 
         except Exception as e:
-            print(f"  エラー: {e}")
+            print(f"  エラー: {pair_name} - {e}")
             import traceback
             traceback.print_exc()
+
+    # ============================================================
+    # 横断比較サマリー
+    # ============================================================
+    if results:
+        print(f"\n{'='*85}")
+        print(f"  横断比較サマリー（15分足・直近60日）")
+        print(f"{'='*85}")
+        print(f"  {'ペア':<10s} {'取引数':>5s} {'勝率':>6s} {'PF':>6s} {'最大DD':>7s} {'純損益':>13s} {'月利中央':>8s} {'停止':>4s}")
+        print(f"  {'-'*10} {'-'*5} {'-'*6} {'-'*6} {'-'*7} {'-'*13} {'-'*8} {'-'*4}")
+
+        # PFでソート（降順）
+        results_sorted = sorted(results, key=lambda x: x['pf'], reverse=True)
+        for r in results_sorted:
+            stop_mark = 'Yes' if r['stopped'] else ''
+            print(f"  {r['pair']:<10s} {r['trades']:5d} {r['win_rate']:5.1f}% {r['pf']:6.2f} {r['max_dd']:6.1%} "
+                  f"¥{r['net_pnl']:>+11,.0f} {r['med_monthly']:>+7.1%} {stop_mark:>4s}")
+
+        # ベスト・ワースト
+        best = max(results, key=lambda x: x['pf'] if x['trades'] > 0 else -1)
+        worst = min(results, key=lambda x: x['pf'] if x['trades'] > 0 else 999)
+        print(f"\n  ベスト: {best['pair']} (PF {best['pf']:.2f}, DD {best['max_dd']:.1%})")
+        print(f"  ワースト: {worst['pair']} (PF {worst['pf']:.2f}, DD {worst['max_dd']:.1%})")
+
+        # 合計
+        total_net = sum(r['net_pnl'] for r in results)
+        total_trades = sum(r['trades'] for r in results)
+        profitable = sum(1 for r in results if r['net_pnl'] > 0)
+        print(f"\n  合計純損益: ¥{total_net:>+,.0f}  総取引数: {total_trades}  プラスペア: {profitable}/{len(results)}")
+        print()
 
 
 if __name__ == '__main__':
