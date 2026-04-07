@@ -156,20 +156,20 @@ def check_signals(row, prev_row):
     # --- シグナル1: BB2.5σ逆張り（メイン）---
     if prev_row is not None:
         prev_close = prev_row['Close']
-        # 買い: トレンド上向き + 前足がBB下限タッチ + 当足がBB下限を回復 + RSI < 38
-        if sma200_up and prev_close <= prev_row['BB_lower'] and close > row['BB_lower'] and rsi < 38:
+        # 買い: トレンド上向き + 前足がBB下限タッチ + 当足がBB下限を回復 + RSI < 42
+        if sma200_up and prev_close <= prev_row['BB_lower'] and close > row['BB_lower'] and rsi < 42:
             return ('BUY', 'BB_reversal')
-        # 売り: トレンド下向き + 前足がBB上限タッチ + 当足がBB上限を下抜け + RSI > 62
-        if not sma200_up and prev_close >= prev_row['BB_upper'] and close < row['BB_upper'] and rsi > 62:
+        # 売り: トレンド下向き + 前足がBB上限タッチ + 当足がBB上限を下抜け + RSI > 58
+        if not sma200_up and prev_close >= prev_row['BB_upper'] and close < row['BB_upper'] and rsi > 58:
             return ('SELL', 'BB_reversal')
 
     # --- シグナル2: 高速BB逆張り（サブ）---
     sma50_up = row['SMA50_up']
-    # 買い: SMA200・SMA50ともに上向き + BB下限タッチ + RSI < 42
-    if sma200_up and sma50_up and close <= row['FBB_lower'] and rsi < 42:
+    # 買い: SMA200・SMA50ともに上向き + BB下限タッチ + RSI < 48
+    if sma200_up and sma50_up and close <= row['FBB_lower'] and rsi < 48:
         return ('BUY', 'Fast_BB')
-    # 売り: SMA200・SMA50ともに下向き + BB上限タッチ + RSI > 58
-    if not sma200_up and not sma50_up and close >= row['FBB_upper'] and rsi > 58:
+    # 売り: SMA200・SMA50ともに下向き + BB上限タッチ + RSI > 52
+    if not sma200_up and not sma50_up and close >= row['FBB_upper'] and rsi > 52:
         return ('SELL', 'Fast_BB')
 
     # --- シグナル3: 押し目・戻り売り（条件厳格化）---
@@ -179,17 +179,17 @@ def check_signals(row, prev_row):
     sma_gap = abs(sma20 - sma50)
     # 追加条件: SMA20-SMA50の間隔がATR×2以上（十分な押し目幅）
     if sma_gap >= atr * 2:
-        # 買い: SMA200上向き + 価格がSMA20とSMA50の間 + RSI 35〜45
+        # 買い: SMA200上向き + 価格がSMA20とSMA50の間 + RSI 30〜50
         if sma200_up:
             lower_band = min(sma20, sma50)
             upper_band = max(sma20, sma50)
-            if lower_band <= close <= upper_band and 35 <= rsi <= 45:
+            if lower_band <= close <= upper_band and 30 <= rsi <= 50:
                 return ('BUY', 'Pullback')
-        # 売り: SMA200下向き + 価格がSMA20とSMA50の間 + RSI 55〜65
+        # 売り: SMA200下向き + 価格がSMA20とSMA50の間 + RSI 50〜70
         if not sma200_up:
             lower_band = min(sma20, sma50)
             upper_band = max(sma20, sma50)
-            if lower_band <= close <= upper_band and 55 <= rsi <= 65:
+            if lower_band <= close <= upper_band and 50 <= rsi <= 70:
                 return ('SELL', 'Pullback')
 
     return None

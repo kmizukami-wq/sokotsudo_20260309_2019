@@ -276,15 +276,15 @@ int CheckSignals()
    double fbbLo  = iBands(NULL, PERIOD_M15, 10, 2.0, 0, PRICE_CLOSE, MODE_LOWER, 1);
 
    // --- シグナル1: BB2.5σ逆張り ---
-   if(sma200Up && close2 <= bbLo2 && close1 > bbLo1 && rsi < 38)
+   if(sma200Up && close2 <= bbLo2 && close1 > bbLo1 && rsi < 42)
    { Print("[SIGNAL] BUY BB_reversal: close2=", close2, "<=bbLo2=", bbLo2, " close1=", close1, ">bbLo1=", bbLo1, " RSI=", rsi); return SIG_BUY_BB; }
-   if(!sma200Up && close2 >= bbUp2 && close1 < bbUp1 && rsi > 62)
+   if(!sma200Up && close2 >= bbUp2 && close1 < bbUp1 && rsi > 58)
    { Print("[SIGNAL] SELL BB_reversal: close2=", close2, ">=bbUp2=", bbUp2, " close1=", close1, "<bbUp1=", bbUp1, " RSI=", rsi); return SIG_SELL_BB; }
 
    // --- シグナル2: 高速BB逆張り ---
-   if(sma200Up && sma50Up && close1 <= fbbLo && rsi < 42)
+   if(sma200Up && sma50Up && close1 <= fbbLo && rsi < 48)
    { Print("[SIGNAL] BUY Fast_BB: close1=", close1, "<=fbbLo=", fbbLo, " RSI=", rsi); return SIG_BUY_FBB; }
-   if(!sma200Up && !sma50Up && close1 >= fbbUp && rsi > 58)
+   if(!sma200Up && !sma50Up && close1 >= fbbUp && rsi > 52)
    { Print("[SIGNAL] SELL Fast_BB: close1=", close1, ">=fbbUp=", fbbUp, " RSI=", rsi); return SIG_SELL_FBB; }
 
    // --- シグナル3: 押し目・戻り売り ---
@@ -294,9 +294,9 @@ int CheckSignals()
       double lowerBand = MathMin(sma20, sma50);
       double upperBand = MathMax(sma20, sma50);
 
-      if(sma200Up && close1 >= lowerBand && close1 <= upperBand && rsi >= 35 && rsi <= 45)
+      if(sma200Up && close1 >= lowerBand && close1 <= upperBand && rsi >= 30 && rsi <= 50)
       { Print("[SIGNAL] BUY Pullback: close1=", close1, " in [", lowerBand, ",", upperBand, "] RSI=", rsi); return SIG_BUY_PB; }
-      if(!sma200Up && close1 >= lowerBand && close1 <= upperBand && rsi >= 55 && rsi <= 65)
+      if(!sma200Up && close1 >= lowerBand && close1 <= upperBand && rsi >= 50 && rsi <= 70)
       { Print("[SIGNAL] SELL Pullback: close1=", close1, " in [", lowerBand, ",", upperBand, "] RSI=", rsi); return SIG_SELL_PB; }
    }
 
