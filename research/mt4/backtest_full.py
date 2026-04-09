@@ -200,78 +200,103 @@ def run_full_backtest(df, cfg, enabled=(1, 2, 3)):
         result = "timeout"
         exit_bar = i
         pnl = 0.0
+        is_timeout = False
 
         for j in range(1, MAX_HOLD_BARS + 1):
             if i + j >= len(df):
                 break
             bar = df.iloc[i + j]
             bar_atr = bar["atr14"] if not np.isnan(bar["atr14"]) else atr
+            bar_high = bar["high"]
+            bar_low = bar["low"]
 
-            if direction == 1:
-                if bar["low"] <= sl_price:
-                    loss_dist = entry_price - sl_price if not be_activated else spread_dist
-                    pnl = -(entry_price - sl_price) * pip_mult * remaining_lots * tick_val + realized_pnl
-                    result = "SL" if not be_activated else "BE"
-                    exit_bar = i + j
-                    break
-                if bar["high"] >= tp_price:
-                    pnl = tp_dist * pip_mult * remaining_lots * tick_val + realized_pnl
-                    result = "TP"
-                    exit_bar = i + j
-                    break
-                unrealized = bar["close"] - entry_price
-                if not be_activated and unrealized >= sl_dist * BE_TRIGGER_RR:
+            if direction == 1:  # BUY
+                # --- Step 1: BE/部分利確をhighで先に判定（ティック近似） ---
+                if not be_activated and (bar_high - entry_price) >= sl_dist * BE_TRIGGER_RR:
                     sl_price = entry_price + spread_dist
                     be_activated = True
-                if not partial_closed and unrealized >= sl_dist * PARTIAL_RR:
+
+                if not partial_closed and (bar_high - entry_price) >= sl_dist * PARTIAL_RR:
                     close_lots = round(remaining_lots * PARTIAL_PCT, 2)
                     if close_lots >= min_lot and (remaining_lots - close_lots) >= min_lot:
-                        realized_pnl += unrealized * pip_mult * close_lots * tick_val
+                        partial_price = entry_price + sl_dist * PARTIAL_RR
+                        realized_pnl += (partial_price - entry_price) * pip_mult * close_lots * tick_val
                         remaining_lots = round(remaining_lots - close_lots, 2)
                         partial_closed = True
-                        trail_sl = bar["close"] - bar_atr * TRAIL_ATR_MULT
+                        trail_sl = partial_price - bar_atr * TRAIL_ATR_MULT
                         if trail_sl > sl_price:
                             sl_price = trail_sl
+
                 if partial_closed:
-                    trail_sl = bar["close"] - bar_atr * TRAIL_ATR_MULT
+                    trail_sl = bar_high - bar_atr * TRAIL_ATR_MULT
                     if trail_sl > sl_price:
                         sl_price = trail_sl
-            else:
-                if bar["high"] >= sl_price:
-                    pnl = -(sl_price - entry_price) * pip_mult * remaining_lots * tick_val + realized_pnl
-                    result = "SL" if not be_activated else "BE"
+
+                # --- Step 2: SL判定（BE/トレーリング更新後のSLで判定） ---
+                if bar_low <= sl_price:
+                    pnl = (sl_price - entry_price) * pip_mult * remaining_lots * tick_val + realized_pnl
+                    result = "BE" if be_activated else "SL"
                     exit_bar = i + j
                     break
-                if bar["low"] <= tp_price:
+
+                # --- Step 3: TP判定 ---
+                if bar_high >= tp_price:
                     pnl = tp_dist * pip_mult * remaining_lots * tick_val + realized_pnl
                     result = "TP"
                     exit_bar = i + j
                     break
-                unrealized = entry_price - bar["close"]
-                if not be_activated and unrealized >= sl_dist * BE_TRIGGER_RR:
+
+            else:  # SELL
+                # --- Step 1: BE/部分利確をlowで先に判定 ---
+                if not be_activated and (entry_price - bar_low) >= sl_dist * BE_TRIGGER_RR:
                     sl_price = entry_price - spread_dist
                     be_activated = True
-                if not partial_closed and unrealized >= sl_dist * PARTIAL_RR:
+
+                if not partial_closed and (entry_price - bar_low) >= sl_dist * PARTIAL_RR:
                     close_lots = round(remaining_lots * PARTIAL_PCT, 2)
                     if close_lots >= min_lot and (remaining_lots - close_lots) >= min_lot:
-                        realized_pnl += unrealized * pip_mult * close_lots * tick_val
+                        partial_price = entry_price - sl_dist * PARTIAL_RR
+                        realized_pnl += (entry_price - partial_price) * pip_mult * close_lots * tick_val
                         remaining_lots = round(remaining_lots - close_lots, 2)
                         partial_closed = True
-                        trail_sl = bar["close"] + bar_atr * TRAIL_ATR_MULT
+                        trail_sl = partial_price + bar_atr * TRAIL_ATR_MULT
                         if trail_sl < sl_price:
                             sl_price = trail_sl
+
                 if partial_closed:
-                    trail_sl = bar["close"] + bar_atr * TRAIL_ATR_MULT
+                    trail_sl = bar_low + bar_atr * TRAIL_ATR_MULT
                     if trail_sl < sl_price:
                         sl_price = trail_sl
+
+                # --- Step 2: SL判定 ---
+                if bar_high >= sl_price:
+                    pnl = (entry_price - sl_price) * pip_mult * remaining_lots * tick_val + realized_pnl
+                    result = "BE" if be_activated else "SL"
+                    exit_bar = i + j
+                    break
+
+                # --- Step 3: TP判定 ---
+                if bar_low <= tp_price:
+                    pnl = tp_dist * pip_mult * remaining_lots * tick_val + realized_pnl
+                    result = "TP"
+                    exit_bar = i + j
+                    break
         else:
+            # タイムアウト
             exit_price = df.iloc[min(i + MAX_HOLD_BARS, len(df) - 1)]["close"]
             pnl = direction * (exit_price - entry_price) * pip_mult * remaining_lots * tick_val + realized_pnl
+            is_timeout = True
 
         spread_cost = row["spread_pips"] * tick_val * lots
         pnl -= spread_cost
 
-        if pnl < 0:
+        # マーチン判定（EA OnTradeClose準拠）
+        if is_timeout or result == "BE":
+            # タイムアウト/BE → EA は OnTradeClose(0) → リセット
+            consec_losses = 0
+            martin_stage = 0
+        elif pnl < 0:
+            # SL損失 → マーチン段階アップ
             consec_losses += 1
             if consec_losses >= 3:
                 martin_stage = 0
@@ -279,6 +304,7 @@ def run_full_backtest(df, cfg, enabled=(1, 2, 3)):
             else:
                 martin_stage = min(consec_losses, 2)
         else:
+            # TP利益 → リセット
             consec_losses = 0
             martin_stage = 0
 
