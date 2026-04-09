@@ -4,7 +4,7 @@
 //| 15分足専用 / 7通貨ペア同時稼働対応                                |
 //+------------------------------------------------------------------+
 #property copyright "sokotsudo research"
-#property version   "1.01"
+#property version   "1.02"
 #property strict
 
 //+------------------------------------------------------------------+
@@ -17,6 +17,7 @@ input double SL_ATR_Mult_BB    = 2.0;     // BB reversal SL multiplier
 input double SL_ATR_Mult_FBB   = 1.8;     // Fast BB SL multiplier
 input double SL_ATR_Mult_PB    = 1.5;     // Pullback SL multiplier
 input double ATR_Filter_Mult   = 2.5;     // ATR filter multiplier
+input double MaxSpreadPips     = 3.0;     // Max spread (pips) ※超過時エントリー停止
 input double BE_Trigger_RR     = 1.0;     // Breakeven trigger RR
 input double Partial_Close_RR  = 1.5;     // Partial close trigger RR
 input double Partial_Close_Pct = 0.5;     // Partial close ratio (0.5=50%)
@@ -222,45 +223,18 @@ double CalcLotSize(double slDist)
 }
 
 //+------------------------------------------------------------------+
-//| SMAトレンド方向判定（5バー前と比較）                              |
-//+------------------------------------------------------------------+
-bool IsSMAUp(int period, int shift)
-{
-   double current = iMA(NULL, PERIOD_M15, period, 0, MODE_SMA, PRICE_CLOSE, shift);
-   double prev5   = iMA(NULL, PERIOD_M15, period, 0, MODE_SMA, PRICE_CLOSE, shift + 5);
-   return current > prev5;
-}
-
-//+------------------------------------------------------------------+
-//| シグナル判定                                                      |
+//| シグナル判定（最適化版）                                          |
 //+------------------------------------------------------------------+
 int CheckSignals()
 {
-   // shift=1: 確定した前バーの値を使用（リペイント防止）
-   double close1    = iClose(NULL, PERIOD_M15, 1);
-   double close2    = iClose(NULL, PERIOD_M15, 2);  // 前々バー（BB逆張りの「前足」）
-   double rsi       = iRSI(NULL, PERIOD_M15, 10, PRICE_CLOSE, 1);
-   double atr       = iATR(NULL, PERIOD_M15, 14, 1);
+   // --- 軽量フィルター（先に処理して早期リターン） ---
 
-   // ATR MA(100) を手動計算
-   double atrSum = 0;
-   for(int k = 1; k <= 100; k++)
-      atrSum += iATR(NULL, PERIOD_M15, 14, k);
-   double atrMA100 = atrSum / 100.0;
-
-   // --- フィルター ---
-   if(atr >= atrMA100 * ATR_Filter_Mult)
-   {
-      Print("[DEBUG] Filtered: ATR=", DoubleToString(atr,5), " >= ATR_MA100*", ATR_Filter_Mult,
-            " (", DoubleToString(atrMA100 * ATR_Filter_Mult, 5), ")");
-      return SIG_NONE;
-   }
-
+   // 1. 時間フィルター（計算不要で最速）
    int jstHour = GetJSTHour();
    bool inWindow;
    if(TradingHourStart <= TradingHourEnd)
       inWindow = (jstHour >= TradingHourStart && jstHour < TradingHourEnd);
-   else  // 日またぎ（例: 9時〜翌6時）
+   else
       inWindow = (jstHour >= TradingHourStart || jstHour < TradingHourEnd);
 
    if(!inWindow)
@@ -269,39 +243,71 @@ int CheckSignals()
       return SIG_NONE;
    }
 
-   Print("[DEBUG] Filters passed: JST=", jstHour, " ATR=", DoubleToString(atr,5),
-         " Close=", DoubleToString(close1,5), " RSI=", DoubleToString(rsi,1));
+   // 2. スプレッドフィルター（FXTF早朝・指標時対策）
+   double spreadPips = MarketInfo(Symbol(), MODE_SPREAD) * Point / (Point * MathPow(10, Digits % 2));
+   if(Digits == 3 || Digits == 5)
+      spreadPips = MarketInfo(Symbol(), MODE_SPREAD) / 10.0;
+   else
+      spreadPips = MarketInfo(Symbol(), MODE_SPREAD);
 
-   // SMA
-   double sma200 = iMA(NULL, PERIOD_M15, 200, 0, MODE_SMA, PRICE_CLOSE, 1);
-   double sma50  = iMA(NULL, PERIOD_M15, 50, 0, MODE_SMA, PRICE_CLOSE, 1);
-   double sma20  = iMA(NULL, PERIOD_M15, 20, 0, MODE_SMA, PRICE_CLOSE, 1);
-   bool sma200Up = IsSMAUp(200, 1);
-   bool sma50Up  = IsSMAUp(50, 1);
+   if(spreadPips > MaxSpreadPips)
+   {
+      Print("[DEBUG] Filtered: Spread=", DoubleToString(spreadPips,1), " pips > MaxSpread=", MaxSpreadPips);
+      return SIG_NONE;
+   }
 
-   // BB(20, 2.5σ)
-   double bbUp1  = iBands(NULL, PERIOD_M15, 20, 2.5, 0, PRICE_CLOSE, MODE_UPPER, 1);
-   double bbLo1  = iBands(NULL, PERIOD_M15, 20, 2.5, 0, PRICE_CLOSE, MODE_LOWER, 1);
-   double bbUp2  = iBands(NULL, PERIOD_M15, 20, 2.5, 0, PRICE_CLOSE, MODE_UPPER, 2);
-   double bbLo2  = iBands(NULL, PERIOD_M15, 20, 2.5, 0, PRICE_CLOSE, MODE_LOWER, 2);
+   // 3. ATRフィルター（100回ループ → ATR(100)の1回呼び出しに高速化）
+   double atr     = iATR(NULL, PERIOD_M15, 14, 1);
+   double atrLong = iATR(NULL, PERIOD_M15, 100, 1);
+   if(atr >= atrLong * ATR_Filter_Mult)
+   {
+      Print("[DEBUG] Filtered: ATR(14)=", DoubleToString(atr,5), " >= ATR(100)*", ATR_Filter_Mult,
+            " (", DoubleToString(atrLong * ATR_Filter_Mult, 5), ")");
+      return SIG_NONE;
+   }
 
-   // BB(10, 2.0σ)
-   double fbbUp  = iBands(NULL, PERIOD_M15, 10, 2.0, 0, PRICE_CLOSE, MODE_UPPER, 1);
-   double fbbLo  = iBands(NULL, PERIOD_M15, 10, 2.0, 0, PRICE_CLOSE, MODE_LOWER, 1);
+   // --- 価格・インジケータ取得 ---
+   double close1 = iClose(NULL, PERIOD_M15, 1);
+   double close2 = iClose(NULL, PERIOD_M15, 2);
+   double open1  = iOpen(NULL, PERIOD_M15, 1);   // ローソク足方向確認用
+   double rsi    = iRSI(NULL, PERIOD_M15, 10, PRICE_CLOSE, 1);
 
-   // --- シグナル1: BB2.5σ逆張り ---
-   if(sma200Up && close2 <= bbLo2 && close1 > bbLo1 && rsi < 42)
-   { Print("[SIGNAL] BUY BB_reversal: close2=", close2, "<=bbLo2=", bbLo2, " close1=", close1, ">bbLo1=", bbLo1, " RSI=", rsi); return SIG_BUY_BB; }
-   if(!sma200Up && close2 >= bbUp2 && close1 < bbUp1 && rsi > 58)
-   { Print("[SIGNAL] SELL BB_reversal: close2=", close2, ">=bbUp2=", bbUp2, " close1=", close1, "<bbUp1=", bbUp1, " RSI=", rsi); return SIG_SELL_BB; }
+   // SMA（1回ずつ取得、IsSMAUp統合で重複呼び出し排除）
+   double sma200    = iMA(NULL, PERIOD_M15, 200, 0, MODE_SMA, PRICE_CLOSE, 1);
+   double sma200_p5 = iMA(NULL, PERIOD_M15, 200, 0, MODE_SMA, PRICE_CLOSE, 6);
+   double sma50     = iMA(NULL, PERIOD_M15, 50, 0, MODE_SMA, PRICE_CLOSE, 1);
+   double sma50_p5  = iMA(NULL, PERIOD_M15, 50, 0, MODE_SMA, PRICE_CLOSE, 6);
+   bool sma200Up = (sma200 > sma200_p5);
+   bool sma50Up  = (sma50 > sma50_p5);
+
+   Print("[DEBUG] Filters passed: JST=", jstHour, " Spread=", DoubleToString(spreadPips,1),
+         " ATR=", DoubleToString(atr,5), " Close=", DoubleToString(close1,5),
+         " RSI=", DoubleToString(rsi,1), " SMA200up=", sma200Up);
+
+   // --- シグナル1: BB2.5σ逆張り（ローソク足方向確認追加） ---
+   double bbUp1 = iBands(NULL, PERIOD_M15, 20, 2.5, 0, PRICE_CLOSE, MODE_UPPER, 1);
+   double bbLo1 = iBands(NULL, PERIOD_M15, 20, 2.5, 0, PRICE_CLOSE, MODE_LOWER, 1);
+   double bbUp2 = iBands(NULL, PERIOD_M15, 20, 2.5, 0, PRICE_CLOSE, MODE_UPPER, 2);
+   double bbLo2 = iBands(NULL, PERIOD_M15, 20, 2.5, 0, PRICE_CLOSE, MODE_LOWER, 2);
+
+   // BUY: 前々足がBB下限突破 → 前足で戻り＋陽線確認
+   if(sma200Up && close2 <= bbLo2 && close1 > bbLo1 && close1 > open1 && rsi < 42)
+   { Print("[SIGNAL] BUY BB_reversal: close2=", close2, "<=bbLo2=", bbLo2, " close1=", close1, ">bbLo1=", bbLo1, " bullish candle, RSI=", rsi); return SIG_BUY_BB; }
+   // SELL: 前々足がBB上限突破 → 前足で戻り＋陰線確認
+   if(!sma200Up && close2 >= bbUp2 && close1 < bbUp1 && close1 < open1 && rsi > 58)
+   { Print("[SIGNAL] SELL BB_reversal: close2=", close2, ">=bbUp2=", bbUp2, " close1=", close1, "<bbUp1=", bbUp1, " bearish candle, RSI=", rsi); return SIG_SELL_BB; }
 
    // --- シグナル2: 高速BB逆張り ---
+   double fbbUp = iBands(NULL, PERIOD_M15, 10, 2.0, 0, PRICE_CLOSE, MODE_UPPER, 1);
+   double fbbLo = iBands(NULL, PERIOD_M15, 10, 2.0, 0, PRICE_CLOSE, MODE_LOWER, 1);
+
    if(sma200Up && sma50Up && close1 <= fbbLo && rsi < 48)
    { Print("[SIGNAL] BUY Fast_BB: close1=", close1, "<=fbbLo=", fbbLo, " RSI=", rsi); return SIG_BUY_FBB; }
    if(!sma200Up && !sma50Up && close1 >= fbbUp && rsi > 52)
    { Print("[SIGNAL] SELL Fast_BB: close1=", close1, ">=fbbUp=", fbbUp, " RSI=", rsi); return SIG_SELL_FBB; }
 
    // --- シグナル3: 押し目・戻り売り ---
+   double sma20 = iMA(NULL, PERIOD_M15, 20, 0, MODE_SMA, PRICE_CLOSE, 1);
    double smaGap = MathAbs(sma20 - sma50);
    if(smaGap >= atr * 2)
    {
