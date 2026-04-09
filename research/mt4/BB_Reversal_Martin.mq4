@@ -4,7 +4,7 @@
 //| 15分足専用 / 7通貨ペア同時稼働対応                                |
 //+------------------------------------------------------------------+
 #property copyright "sokotsudo research"
-#property version   "1.02"
+#property version   "1.03"
 #property strict
 
 //+------------------------------------------------------------------+
@@ -77,18 +77,14 @@ int GetJSTHour()
    // 例: ServerGMTOffset=2 → JST = サーバー時刻 + 7時間
    int jstOffset = 9 - ServerGMTOffset;
    datetime jstTime = TimeCurrent() + jstOffset * 3600;
-   MqlDateTime dt;
-   TimeToStruct(jstTime, dt);
-   return dt.hour;
+   return TimeHour(jstTime);
 }
 
 int GetUTCHour()
 {
    // ログ用: サーバー時刻 → UTC変換
    datetime utcTime = TimeCurrent() - ServerGMTOffset * 3600;
-   MqlDateTime dt;
-   TimeToStruct(utcTime, dt);
-   return dt.hour;
+   return TimeHour(utcTime);
 }
 
 //+------------------------------------------------------------------+
