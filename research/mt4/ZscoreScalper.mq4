@@ -121,6 +121,41 @@ double CalcZscore()
 }
 
 //+------------------------------------------------------------------+
+//| Zスコア計算（リアルタイム: 決済用）                                  |
+//| 確定済み29本 + 現在のBid価格でZを算出                              |
+//+------------------------------------------------------------------+
+double CalcZscoreRealtime()
+{
+   if(Bars < Window + 1) return(0);
+
+   double sum = 0;
+   double sum2 = 0;
+
+   // 確定済みの足（1本目=直近確定足、Window-1本分）
+   for(int i = 1; i < Window; i++)
+   {
+      double c = iClose(Symbol(), PERIOD_M15, i);
+      sum += c;
+      sum2 += c * c;
+   }
+
+   // 最新はリアルタイムのBid価格
+   double current_price = MarketInfo(Symbol(), MODE_BID);
+   sum += current_price;
+   sum2 += current_price * current_price;
+
+   double mean = sum / Window;
+   double variance = (sum2 / Window) - (mean * mean);
+
+   if(variance <= 0) return(0);
+
+   double std = MathSqrt(variance);
+   double zscore = (current_price - mean) / std;
+
+   return(zscore);
+}
+
+//+------------------------------------------------------------------+
 //| 現在のポジションを取得                                              |
 //+------------------------------------------------------------------+
 int GetCurrentPosition()
@@ -230,64 +265,69 @@ bool OpenPosition(int direction)
 //+------------------------------------------------------------------+
 void OnTick()
 {
-   // 新しい15分足の確定時のみ処理（足の最初のティック）
+   // 取引時間外はポジション決済して終了
+   CloseIfOutsideTradeTime();
+
+   int pos = GetCurrentPosition();
+
+   //=== 決済判定: 毎ティック（リアルタイム） ===
+   if(pos != 0)
+   {
+      // タイムアウトチェック
+      datetime entryTime = GetEntryTime();
+      double holdHours = (double)(TimeCurrent() - entryTime) / 3600.0;
+
+      if(holdHours >= TimeoutH)
+      {
+         double zrt = CalcZscoreRealtime();
+         Print("タイムアウト決済: ", Symbol(), " 保有",
+               DoubleToStr(holdHours, 1), "時間 Z=", DoubleToStr(zrt, 3));
+         ClosePosition();
+         pos = 0;
+      }
+      else
+      {
+         // リアルタイムZスコアで決済判定
+         double zrt = CalcZscoreRealtime();
+         if(zrt == 0) return;
+
+         if(pos == 1) // ロング保有中
+         {
+            if(zrt > -ExitZ || zrt < -StopZ)
+            {
+               Print("決済(LONG): Z=", DoubleToStr(zrt, 3),
+                     (zrt > -ExitZ ? " 利確" : " 損切り"));
+               ClosePosition();
+               pos = 0;
+            }
+         }
+         else if(pos == -1) // ショート保有中
+         {
+            if(zrt < ExitZ || zrt > StopZ)
+            {
+               Print("決済(SHORT): Z=", DoubleToStr(zrt, 3),
+                     (zrt < ExitZ ? " 利確" : " 損切り"));
+               ClosePosition();
+               pos = 0;
+            }
+         }
+      }
+   }
+
+   //=== エントリー判定: 15分足確定時のみ ===
    static datetime lastBarTime = 0;
    datetime currentBarTime = iTime(Symbol(), PERIOD_M15, 0);
 
    if(currentBarTime == lastBarTime) return;
    lastBarTime = currentBarTime;
 
-   // 取引時間外はポジション決済して終了
-   CloseIfOutsideTradeTime();
    if(!IsTradeTime()) return;
 
-   // Zスコア計算
-   double zscore = CalcZscore();
-   if(zscore == 0) return;
-
-   // 現在のポジション
-   int pos = GetCurrentPosition();
-
-   // タイムアウトチェック
-   if(pos != 0)
-   {
-      datetime entryTime = GetEntryTime();
-      double holdHours = (double)(TimeCurrent() - entryTime) / 3600.0;
-
-      if(holdHours >= TimeoutH)
-      {
-         Print("タイムアウト決済: ", Symbol(), " 保有",
-               DoubleToStr(holdHours, 1), "時間 Z=", DoubleToStr(zscore, 3));
-         ClosePosition();
-         return; // 決済後は次の足でエントリー判定
-      }
-   }
-
-   // 決済判定
-   if(pos == 1) // ロング保有中
-   {
-      if(zscore > -ExitZ || zscore < -StopZ)
-      {
-         Print("決済(LONG): Z=", DoubleToStr(zscore, 3),
-               (zscore > -ExitZ ? " 利確" : " 損切り"));
-         ClosePosition();
-         pos = 0;
-      }
-   }
-   else if(pos == -1) // ショート保有中
-   {
-      if(zscore < ExitZ || zscore > StopZ)
-      {
-         Print("決済(SHORT): Z=", DoubleToStr(zscore, 3),
-               (zscore < ExitZ ? " 利確" : " 損切り"));
-         ClosePosition();
-         pos = 0;
-      }
-   }
-
-   // エントリー判定（ポジションなしの場合）
    if(pos == 0)
    {
+      double zscore = CalcZscore();
+      if(zscore == 0) return;
+
       if(zscore > EntryZ)
       {
          Print("シグナル: SHORT Z=", DoubleToStr(zscore, 3));
