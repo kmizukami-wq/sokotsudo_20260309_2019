@@ -7,19 +7,19 @@
 #property strict
 
 //--- 入力パラメータ
-input int    Window      = 30;     // Z-score計算窓（15分足30本=7.5時間）
-input double EntryZ      = 0.51;   // エントリーZ閾値
-input double ExitZ       = 0.5;    // 決済Z閾値
-input double StopZ       = 6.0;    // 損切りZ閾値
-input double TimeoutH    = 2.0;    // タイムアウト（時間）
-input int    TPpips      = 15;     // 利確（pips）0=無効
-input int    SLpips      = 15;     // 損切り（pips）0=無効
-input double LotSize     = 0.1;    // ロットサイズ（1万通貨=0.1）
-input int    MagicNumber = 20260411; // マジックナンバー
-input int    Slippage    = 3;      // スリッページ（ポイント）
-input int    TradeStartH = 0;      // 取引開始時刻（UTC）
-input int    TradeEndH   = 21;     // 取引終了時刻（UTC）
-input int    BrokerUTCOffset = 3;  // ブローカーのUTCオフセット（FXTF夏時間=3, 冬時間=2）
+input int    Window      = 30;     // Zscore Window (M15 x 30 = 7.5h)
+input double EntryZ      = 0.51;   // Entry Z threshold
+input double ExitZ       = 0.5;    // Exit Z threshold
+input double StopZ       = 6.0;    // Stop Z threshold
+input double TimeoutH    = 2.0;    // Timeout (hours)
+input int    TPpips      = 15;     // Take Profit (pips) 0=off
+input int    SLpips      = 15;     // Stop Loss (pips) 0=off
+input double LotSize     = 0.1;    // Lot Size (0.1=10000, 0.01=1000)
+input int    MagicNumber = 20260411; // Magic Number
+input int    Slippage    = 3;      // Slippage (points)
+input int    TradeStartH = 0;      // Trade Start Hour (UTC)
+input int    TradeEndH   = 21;     // Trade End Hour (UTC)
+input int    BrokerUTCOffset = 3;  // Broker UTC Offset (FXTF summer=3, winter=2)
 
 //--- グローバル変数
 double g_mean[];
