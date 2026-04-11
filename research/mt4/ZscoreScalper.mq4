@@ -15,12 +15,52 @@ input double TimeoutH    = 6.0;    // タイムアウト（時間）
 input double LotSize     = 0.1;    // ロットサイズ（1万通貨=0.1）
 input int    MagicNumber = 20260411; // マジックナンバー
 input int    Slippage    = 3;      // スリッページ（ポイント）
+input int    TradeStartH = 0;      // 取引開始時刻（UTC）
+input int    TradeEndH   = 21;     // 取引終了時刻（UTC）
+input int    BrokerUTCOffset = 3;  // ブローカーのUTCオフセット（FXTF夏時間=3, 冬時間=2）
 
 //--- グローバル変数
 double g_mean[];
 double g_std[];
 double g_close[];
 int    g_size;
+
+//+------------------------------------------------------------------+
+//| 取引時間帯チェック（UTC基準）                                       |
+//+------------------------------------------------------------------+
+bool IsTradeTime()
+{
+   // ブローカー時刻からUTC時刻を算出
+   int brokerHour = TimeHour(TimeCurrent());
+   int utcHour = brokerHour - BrokerUTCOffset;
+   if(utcHour < 0) utcHour += 24;
+   if(utcHour >= 24) utcHour -= 24;
+
+   // UTC 0:00 ~ 21:00 が取引時間
+   if(TradeStartH <= TradeEndH)
+      return(utcHour >= TradeStartH && utcHour < TradeEndH);
+   else // 日跨ぎ（例: 22~5）
+      return(utcHour >= TradeStartH || utcHour < TradeEndH);
+}
+
+//+------------------------------------------------------------------+
+//| 取引時間外のポジション強制決済                                       |
+//+------------------------------------------------------------------+
+void CloseIfOutsideTradeTime()
+{
+   if(IsTradeTime()) return;
+
+   int pos = GetCurrentPosition();
+   if(pos != 0)
+   {
+      int brokerHour = TimeHour(TimeCurrent());
+      int utcHour = brokerHour - BrokerUTCOffset;
+      if(utcHour < 0) utcHour += 24;
+
+      Print("取引時間外決済: ", Symbol(), " UTC=", utcHour, ":00");
+      ClosePosition();
+   }
+}
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                     |
@@ -35,7 +75,9 @@ int OnInit()
 
    Print("ZscoreScalper 初期化完了: ", Symbol(),
          " W=", Window, " Entry=", EntryZ, " Exit=", ExitZ,
-         " Stop=", StopZ, " TO=", TimeoutH, "h Lot=", LotSize);
+         " Stop=", StopZ, " TO=", TimeoutH, "h Lot=", LotSize,
+         " 取引時間=UTC", TradeStartH, "-", TradeEndH,
+         " BrokerOffset=UTC+", BrokerUTCOffset);
 
    return(INIT_SUCCEEDED);
 }
@@ -194,6 +236,10 @@ void OnTick()
 
    if(currentBarTime == lastBarTime) return;
    lastBarTime = currentBarTime;
+
+   // 取引時間外はポジション決済して終了
+   CloseIfOutsideTradeTime();
+   if(!IsTradeTime()) return;
 
    // Zスコア計算
    double zscore = CalcZscore();
