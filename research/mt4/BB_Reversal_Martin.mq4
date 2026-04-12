@@ -4,13 +4,14 @@
 //| 15分足専用 / 7通貨ペア同時稼働対応                                |
 //+------------------------------------------------------------------+
 #property copyright "sokotsudo research"
-#property version   "1.03"
+#property version   "1.04"
 #property strict
 
 //+------------------------------------------------------------------+
 //| 外部パラメータ                                                    |
 //+------------------------------------------------------------------+
-input int    MagicNumber       = 10001;   // MagicNumber (change per pair)
+input int    MagicNumberBase   = 10000;   // MagicNumber base (Auto時はbase+symbol_hash)
+input bool   AutoMagicPerPair  = true;    // true=通貨ペア毎に自動振り分け (推奨)
 input double RiskPercent       = 0.8;     // Risk per trade (%)
 input double RR_Ratio          = 2.0;     // Risk:Reward ratio
 input double SL_ATR_Mult_BB    = 2.0;     // BB reversal SL multiplier
@@ -26,8 +27,8 @@ input int    MaxHoldingBars    = 20;      // Max holding bars
 input double Martin1           = 1.0;     // Martingale Stage1
 input double Martin2           = 1.5;     // Martingale Stage2
 input double Martin3           = 2.0;     // Martingale Stage3
-input int    TradingHourStart  = 9;       // Trading start hour (JST) ※日本時間
-input int    TradingHourEnd    = 6;       // Trading end hour (JST) ※Start>Endで日またぎ対応
+input int    TradingHourStart  = 0;       // Trading start hour (UTC) ※JST=+9時間
+input int    TradingHourEnd    = 21;      // Trading end hour (UTC) ※UTC 21=JST翌6 (夏時間注意)
 input double MonthlyDDLimit    = 15.0;    // Monthly DD stop (%)
 input double AnnualDDLimit     = 20.0;    // Annual DD stop (%)
 input int    Slippage          = 10;      // Slippage (points)
@@ -66,10 +67,23 @@ int    g_currentTicket  = -1;
 // 新バー検知用
 datetime g_lastBarTime  = 0;
 
+// MagicNumber (OnInit で確定)
+int g_magicNumber = 0;
+
 //+------------------------------------------------------------------+
 //| 時刻関連ユーティリティ                                            |
 //+------------------------------------------------------------------+
-input int    ServerGMTOffset   = 2;       // Server GMT offset (FXTF MT4=2, 夏時間=3)
+input int    ServerGMTOffset   = 3;       // Server GMT offset ※FXTF夏=3 冬=2 (DST切替注意)
+
+int SymbolHash(string sym)
+{
+   // 通貨ペア名から一意な整数生成（同一ブローカー/接尾辞内でユニーク）
+   int hash = 0;
+   int len = StringLen(sym);
+   for(int i = 0; i < len; i++)
+      hash += (int)StringGetCharacter(sym, i) * (i + 1);
+   return hash;
+}
 
 int GetJSTHour()
 {
@@ -106,7 +120,7 @@ bool IsNewBar()
 //+------------------------------------------------------------------+
 void SaveState()
 {
-   string filename = "BB_Martin_" + Symbol() + "_" + IntegerToString(MagicNumber) + ".dat";
+   string filename = "BB_Martin_" + Symbol() + "_" + IntegerToString(g_magicNumber) + ".dat";
    int handle = FileOpen(filename, FILE_WRITE|FILE_TXT);
    if(handle != INVALID_HANDLE)
    {
@@ -132,7 +146,7 @@ void SaveState()
 //+------------------------------------------------------------------+
 void LoadState()
 {
-   string filename = "BB_Martin_" + Symbol() + "_" + IntegerToString(MagicNumber) + ".dat";
+   string filename = "BB_Martin_" + Symbol() + "_" + IntegerToString(g_magicNumber) + ".dat";
    if(!FileIsExist(filename))
       return;
 
@@ -165,7 +179,7 @@ int FindMyOrder()
    {
       if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
          continue;
-      if(OrderSymbol() == Symbol() && OrderMagicNumber() == MagicNumber)
+      if(OrderSymbol() == Symbol() && OrderMagicNumber() == g_magicNumber)
          return OrderTicket();
    }
    return -1;
@@ -225,17 +239,17 @@ int CheckSignals()
 {
    // --- 軽量フィルター（先に処理して早期リターン） ---
 
-   // 1. 時間フィルター（計算不要で最速）
-   int jstHour = GetJSTHour();
+   // 1. 時間フィルター（UTCベース、計算不要で最速）
+   int utcHour = GetUTCHour();
    bool inWindow;
    if(TradingHourStart <= TradingHourEnd)
-      inWindow = (jstHour >= TradingHourStart && jstHour < TradingHourEnd);
-   else
-      inWindow = (jstHour >= TradingHourStart || jstHour < TradingHourEnd);
+      inWindow = (utcHour >= TradingHourStart && utcHour < TradingHourEnd);
+   else  // 日またぎ（例: UTC 22〜翌5時）
+      inWindow = (utcHour >= TradingHourStart || utcHour < TradingHourEnd);
 
    if(!inWindow)
    {
-      Print("[DEBUG] Filtered: JST hour=", jstHour, " outside ", TradingHourStart, "-", TradingHourEnd);
+      Print("[DEBUG] Filtered: UTC hour=", utcHour, " outside ", TradingHourStart, "-", TradingHourEnd);
       return SIG_NONE;
    }
 
@@ -276,7 +290,7 @@ int CheckSignals()
    bool sma200Up = (sma200 > sma200_p5);
    bool sma50Up  = (sma50 > sma50_p5);
 
-   Print("[DEBUG] Filters passed: JST=", jstHour, " Spread=", DoubleToString(spreadPips,1),
+   Print("[DEBUG] Filters passed: UTC=", utcHour, " Spread=", DoubleToString(spreadPips,1),
          " ATR=", DoubleToString(atr,5), " Close=", DoubleToString(close1,5),
          " RSI=", DoubleToString(rsi,1), " SMA200up=", sma200Up);
 
@@ -634,7 +648,7 @@ void TryEntry()
    string comment = StringFormat("BB_M_%d_S%d", MathAbs(signal), g_martinStage + 1);
 
    int ticket = OrderSend(Symbol(), cmd, lots, entryPrice, Slippage,
-                           slPrice, tpPrice, comment, MagicNumber, 0, arrowColor);
+                           slPrice, tpPrice, comment, g_magicNumber, 0, arrowColor);
 
    if(ticket > 0)
    {
@@ -668,7 +682,7 @@ void ShowStatus()
       "Monthly PnL: %+.1f%%\n"
       "System: %s\n"
       "Position: %s | BE: %s | Partial: %s",
-      Symbol(), MagicNumber,
+      Symbol(), g_magicNumber,
       g_martinStage + 1, GetMartinMultiplier(), g_consecLosses,
       AccountEquity(), g_monthStartEq,
       g_monthStartEq > 0 ? (AccountEquity() - g_monthStartEq) / g_monthStartEq * 100.0 : 0.0,
@@ -689,6 +703,13 @@ int OnInit()
    if(Period() != PERIOD_M15)
       Alert("Warning: This EA is designed for M15 timeframe!");
 
+   // MagicNumber 確定 (Auto=base+hash / Manual=base)
+   if(AutoMagicPerPair)
+      g_magicNumber = MagicNumberBase + SymbolHash(Symbol());
+   else
+      g_magicNumber = MagicNumberBase;
+   Print("MagicNumber: ", g_magicNumber, " (", (AutoMagicPerPair ? "Auto" : "Manual"), ") for ", Symbol());
+
    g_currentMonth = Month();
    g_currentYear  = Year();
    g_monthStartEq = AccountEquity();
@@ -701,7 +722,7 @@ int OnInit()
    // 既存ポジションの確認
    g_currentTicket = FindMyOrder();
 
-   Print(StringFormat("BB_Reversal_Martin EA initialized on %s M15 (Magic=%d)", Symbol(), MagicNumber));
+   Print(StringFormat("BB_Reversal_Martin EA initialized on %s M15 (Magic=%d)", Symbol(), g_magicNumber));
    Print(StringFormat("Martin: [%.1f, %.1f, %.1f] | Risk: %.1f%% | RR: %.1f",
          Martin1, Martin2, Martin3, RiskPercent, RR_Ratio));
 
