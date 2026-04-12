@@ -78,7 +78,13 @@ def check_sig(row,prev):
         if not u2 and lo<=c1<=hi and 50<=rsi<=70:return -3
     return 0
 
-def run_bt(df,cfg,use_fixed_lot=True,zero_spread=True):
+def run_bt(df,cfg,use_fixed_lot=True,zero_spread=True,max_lot=None,disable_martin=False):
+    """
+    use_fixed_lot=False: リスク%ベース計算
+    use_fixed_lot=True : FIXED_LOT (× MARTIN 倍率)
+    max_lot=0.1: 最大ロット制限（マーチン含め上限0.1）
+    disable_martin=True: マーチン無効化（常にStage1）
+    """
     pm=cfg["pip_mult"];tv=cfg["tick_value"];pu=cfg["pip"]
     eq=float(INITIAL_EQUITY);ep=eq;mdd=0.0;mseq=eq
     ms=0;cl=0;trades=[];monthly=[];cm=None
@@ -92,7 +98,10 @@ def run_bt(df,cfg,use_fixed_lot=True,zero_spread=True):
         if sig==0:i+=1;continue
         d=1 if sig>0 else -1;st=abs(sig);atr=row["atr14"]
         sld=atr*SL_MULTS.get(st,1.5);tpd=sld*RR_RATIO;spd=cfg["spread"]*pu
-        ep_=row["close"];mm=MARTIN[min(ms,2)]
+        ep_=row["close"]
+        # マーチン倍率（無効化時は常にStage1）
+        effective_ms = 0 if disable_martin else min(ms,2)
+        mm=MARTIN[effective_ms]
 
         # ロット計算（固定 or リスク%ベース）
         if use_fixed_lot:
@@ -103,6 +112,10 @@ def run_bt(df,cfg,use_fixed_lot=True,zero_spread=True):
             if sp_pips<=0:i+=1;continue
             raw=(ra*mm)/(sp_pips*tv)
             lots=max(0.01,int(raw/0.01)*0.01)
+
+        # 最大ロット上限（案B/C用）
+        if max_lot is not None:
+            lots=min(lots,max_lot)
 
         slp=ep_-d*sld;tpp=ep_+d*tpd
         be=False;pc=False;rl=lots;rp=0.0;res="timeout";eb=i;pnl=0.0;to=False
@@ -181,11 +194,13 @@ def main():
         all_data[pn]={"df":df,"cfg":cfg}
         print(f"{len(df)} bars")
 
-    # 3モード比較
+    # 5モード比較
     modes=[
-        ("変動ロット(通常)", {"use_fixed_lot":False,"zero_spread":False}),
-        ("固定0.1lot(spread0)", {"use_fixed_lot":True,"zero_spread":True}),
-        ("固定0.1lot(spread有)", {"use_fixed_lot":True,"zero_spread":False}),
+        ("現状(変動ロット)",      {"use_fixed_lot":False,"zero_spread":False}),
+        ("案A(固定0.1×マーチン)", {"use_fixed_lot":True, "zero_spread":True}),
+        ("案B(上限0.1・マーチン有)",{"use_fixed_lot":False,"zero_spread":True,"max_lot":0.1}),
+        ("案C(上限0.1・マーチンOFF)",{"use_fixed_lot":False,"zero_spread":True,"max_lot":0.1,"disable_martin":True}),
+        ("案D(固定0.1・マーチンOFF)",{"use_fixed_lot":True, "zero_spread":True,"disable_martin":True}),
     ]
 
     results={}
@@ -196,85 +211,105 @@ def main():
             s=summarize(tr,dd,mo,eq)
             results.setdefault(pn,{})[mode_name]=s
 
-    # 表示: 3モード比較
-    print(f"\n{'='*100}")
-    print(f"  【3モード比較: PF / 月利中央値】")
-    print(f"{'='*100}")
-    print(f"  {'ペア':>8s}  │ {'変動(通常)':>18s} │ {'固定0.1(SP=0)':>18s} │ {'固定0.1(SP有)':>18s} │ {'推奨'}")
-    print(f"  {'-'*96}")
-    rows=[]
+    # 全モードの純損益比較
+    mode_keys=[m[0] for m in modes]
+    print(f"\n{'='*120}")
+    print(f"  【5モード比較: 純損益 (¥, 3ヶ月)】")
+    print(f"{'='*120}")
+    header=f"  {'ペア':>7s}"+"".join(f"  {k:>18s}" for k in mode_keys)
+    print(header)
+    print(f"  {'-'*(7+20*len(mode_keys))}")
+    totals={k:0 for k in mode_keys}
     for pn in all_data:
-        v=results[pn]["変動ロット(通常)"]
-        f0=results[pn]["固定0.1lot(spread0)"]
-        fs=results[pn]["固定0.1lot(spread有)"]
-        def fmt(s):
-            if not s:return "   -    /    -   "
-            pf=f"{s['pf']:.2f}" if s['pf']<100 else "∞"
-            return f"PF{pf:>4s} 月{s['mm']:>+5.1f}%"
-        rec="固定0.1(SP=0)" if f0 and f0['pnl']>0 and (not v or f0['pnl']/INITIAL_EQUITY*100>v['pnl']/INITIAL_EQUITY*100*0.5) else ("変動" if v and v['pnl']>0 else "見送り")
-        print(f"  {pn:>8s}  │ {fmt(v):>18s} │ {fmt(f0):>18s} │ {fmt(fs):>18s} │ {rec}")
-        rows.append({"pair":pn,"v":v,"f0":f0,"fs":fs})
+        row=f"  {pn:>7s}"
+        for k in mode_keys:
+            s=results[pn][k]
+            if s:
+                v=s["pnl"]
+                totals[k]+=v
+                row+=f"  {v:>+17,.0f}"
+            else:
+                row+=f"  {'---':>18s}"
+        print(row)
+    print(f"  {'-'*(7+20*len(mode_keys))}")
+    tr=f"  {'合計':>7s}"
+    for k in mode_keys:tr+=f"  {totals[k]:>+17,.0f}"
+    print(tr)
+
+    # PF比較
+    print(f"\n{'='*120}")
+    print(f"  【5モード比較: PF】")
+    print(f"{'='*120}")
+    print(header)
+    print(f"  {'-'*(7+20*len(mode_keys))}")
+    for pn in all_data:
+        row=f"  {pn:>7s}"
+        for k in mode_keys:
+            s=results[pn][k]
+            if s:
+                pfv=f"{s['pf']:.2f}" if s['pf']<100 else "∞"
+                row+=f"  {pfv:>18s}"
+            else:
+                row+=f"  {'---':>18s}"
+        print(row)
+
+    rows=[{"pair":pn,**{k:results[pn][k] for k in mode_keys}} for pn in all_data]
 
     # サマリー
-    def sum_pnl(rows,key):
-        return sum(r[key]["pnl"] for r in rows if r[key])
-    def sum_monthly(rows,key,filter_plus=False):
-        vals=[r[key]["mm"] for r in rows if r[key] and (r[key]["pnl"]>0 if filter_plus else True)]
-        return sum(vals)
+    print(f"\n{'='*120}")
+    print(f"  【全体サマリー（全26ペア、3ヶ月）】")
+    print(f"{'='*120}")
+    print(f"  {'モード':>28s}  {'合計損益(¥)':>14s}  {'月利中央値合計':>12s}  {'プラス収支ペア数':>14s}  {'最大DD平均':>10s}")
+    print(f"  {'-'*90}")
+    for k in mode_keys:
+        vals=[r[k] for r in rows if r[k]]
+        if not vals:continue
+        total_pnl=sum(v["pnl"] for v in vals)
+        mm_sum=sum(v["mm"] for v in vals)
+        plus=sum(1 for v in vals if v["pnl"]>0)
+        dd_avg=sum(v["dd"] for v in vals)/len(vals)
+        print(f"  {k:>28s}  {total_pnl:>+13,.0f}  {mm_sum:>+11.1f}%  {plus:>12d}/26  {dd_avg:>9.1f}%")
 
-    print(f"\n{'='*100}")
-    print(f"  【全体サマリー（3ヶ月合計）】")
-    print(f"{'='*100}")
-    for k,label in [("v","変動ロット"),("f0","固定0.1lot(SP=0)"),("fs","固定0.1lot(SP有)")]:
-        tot=sum_pnl(rows,k)
-        tot_m=sum_monthly(rows,k)/len(rows) if rows else 0
-        print(f"  {label:>20s}: 合計¥{tot:+,.0f}  26ペア月利中央値合計 {tot_m:+.1f}%")
+    # プラス収支ペアのみ抽出（各モード別）
+    print(f"\n{'='*120}")
+    print(f"  【プラス収支ペアのみ合算 → 想定月利】")
+    print(f"{'='*120}")
+    print(f"  {'モード':>28s}  {'ペア数':>6s}  {'3ヶ月損益':>14s}  {'月利合算':>12s}  {'月次絶対額':>14s}")
+    print(f"  {'-'*80}")
+    for k in mode_keys:
+        plus_vals=[r[k] for r in rows if r[k] and r[k]["pnl"]>0]
+        if not plus_vals:continue
+        pcount=len(plus_vals)
+        pnl=sum(v["pnl"] for v in plus_vals)
+        mm_sum=sum(v["mm"] for v in plus_vals)
+        monthly_abs=INITIAL_EQUITY*mm_sum/100
+        print(f"  {k:>28s}  {pcount:>5d}/26  {pnl:>+13,.0f}  {mm_sum:>+11.1f}%  {monthly_abs:>+13,.0f}")
 
-    # プラス収支ペアのみ抽出
-    plus_pairs_f0=[r["pair"] for r in rows if r["f0"] and r["f0"]["pnl"]>0]
-    print(f"\n  固定0.1(SP=0)でプラス: {len(plus_pairs_f0)}/26 ペア")
-    print(f"    {', '.join(plus_pairs_f0)}")
+    # 各モードの1年後資産シミュレーション（単利）
+    print(f"\n{'='*120}")
+    print(f"  【1年後資産シミュレーション (プラスペアのみ、単利)】")
+    print(f"{'='*120}")
+    print(f"  {'モード':>28s}  {'月利合算':>10s}  {'3ヶ月後':>14s}  {'6ヶ月後':>14s}  {'12ヶ月後':>14s}")
+    print(f"  {'-'*92}")
+    for k in mode_keys:
+        plus_vals=[r[k] for r in rows if r[k] and r[k]["pnl"]>0]
+        if not plus_vals:continue
+        mm_sum=sum(v["mm"] for v in plus_vals)
+        m_abs=INITIAL_EQUITY*mm_sum/100
+        e3=INITIAL_EQUITY+m_abs*3
+        e6=INITIAL_EQUITY+m_abs*6
+        e12=INITIAL_EQUITY+m_abs*12
+        print(f"  {k:>28s}  {mm_sum:>+9.1f}%  ¥{e3:>13,.0f}  ¥{e6:>13,.0f}  ¥{e12:>13,.0f}")
 
-    if plus_pairs_f0:
-        plus_pnl=sum(r["f0"]["pnl"] for r in rows if r["pair"] in plus_pairs_f0 and r["f0"])
-        plus_months_sum=sum(r["f0"]["mm"] for r in rows if r["pair"] in plus_pairs_f0 and r["f0"])
-        print(f"  プラスペアだけ合計損益(3ヶ月): +¥{plus_pnl:,.0f}")
-        print(f"  プラスペアだけ月利中央値合算: +{plus_months_sum:.1f}% / 月")
-        print(f"  → 初期¥500k で推定: +¥{int(INITIAL_EQUITY*plus_months_sum/100):,} / 月 (単利)")
-
-    # 複利シナリオ分析
-    print(f"\n{'='*100}")
-    print(f"  【複利シナリオ分析 (プラスペアのみ採用)】")
-    print(f"{'='*100}")
-    if plus_pairs_f0:
-        monthly_yield=plus_months_sum  # 月利合算（単利扱い）
-        print(f"  想定月利: {monthly_yield:+.1f}% (26ペアの固定0.1lot SP=0 での合算)\n")
-
-        print(f"  {'':>6s}  {'A:固定0.1lot(単利)':>20s}  {'B:リスク%(複利)':>20s}  {'C:EA 2本並列(複利)':>20s}")
-        print(f"  {'-'*76}")
-        # A: 単利（毎月同じ金額増加）
-        # B: 複利（前月残高 × (1+r)）。ただし0.1超のロットはスプレッド発生の影響で月利90%
-        # C: EA 2本並列。実質0.2lot相当、どちらも1万以下なのでSP=0維持、月利2倍
-        monthly_abs=INITIAL_EQUITY*monthly_yield/100  # A用
-        eq_a=INITIAL_EQUITY; eq_b=INITIAL_EQUITY; eq_c=INITIAL_EQUITY
-        for month in range(1,13):
-            eq_a+=monthly_abs
-            # B: lot 0.1を超えたらスプレッド発生で月利の90%に低減と仮定
-            ratio_b=1 if eq_b<=INITIAL_EQUITY else 0.9  # 簡易
-            eq_b=eq_b*(1+monthly_yield/100*ratio_b)
-            # C: EA 2本並列 → 2倍月利（ただし相関あるので1.8倍で近似）
-            eq_c=eq_c*(1+monthly_yield/100*1.8)
-            if month in[1,3,6,12]:
-                print(f"  {month}ヶ月後  ¥{eq_a:>16,.0f}  ¥{eq_b:>18,.0f}  ¥{eq_c:>18,.0f}")
-
-    # おすすめ運用
-    print(f"\n{'='*100}")
-    print(f"  【推奨運用】")
-    print(f"{'='*100}")
-    print("  1. まずは固定0.1lotで全プラスペア運用（スプレッド0の恩恵最大化）")
-    print("  2. 資金が倍になったら、EAインスタンスを2本並列（各0.1lot固定）で運用")
-    print("     → 各1万通貨以下のためスプレッドはずっと0に保たれる")
-    print("  3. さらに資金が増えたら並列数を増やす（3本、4本...）")
-    print("  ※リスク%ベースはロット>0.1でスプレッドが発生し、FXTFの優遇が消える")
+    # 推奨案の判定
+    print(f"\n{'='*120}")
+    print(f"  【判定】")
+    print(f"{'='*120}")
+    best_k=None; best_pnl=-1e12
+    for k in mode_keys:
+        tot=sum(r[k]["pnl"] for r in rows if r[k])
+        if tot>best_pnl:
+            best_pnl=tot; best_k=k
+    print(f"  最優秀モード: 【{best_k}】 合計損益 ¥{best_pnl:+,.0f}")
 
 main()
