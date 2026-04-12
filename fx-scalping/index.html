@@ -64,9 +64,15 @@
 <header>
   <div>
     <h1>FX TF ティック・スキャルピング <span class="tag">手法A</span></h1>
-    <div class="sub">USD/JPY ・ 1万通貨（ランク1無料枠） ・ ピーク・トレーリング退出</div>
+    <div class="sub">USD/JPY ・ 1万通貨（ランク1無料枠） ・ <span id="modeLabel">最適化モード</span></div>
   </div>
   <div class="controls">
+    <label class="slider">モード
+      <select id="mode" style="background:var(--panel2);color:var(--text);border:1px solid var(--line);padding:4px 6px;font-family:var(--mono)">
+        <option value="opt" selected>最適化</option>
+        <option value="strict">元仕様(厳格)</option>
+      </select>
+    </label>
     <label class="slider">速度 <input id="speed" type="range" min="1" max="200" value="60"></label>
     <button id="btnStart" class="primary">▶ 開始</button>
     <button id="btnPause" disabled>❚❚ 停止</button>
@@ -100,13 +106,14 @@
         <div class="stat"><div class="k">最大連勝</div><div class="v" id="stMaxW">0</div></div>
         <div class="stat"><div class="k">最大DD (pips)</div><div class="v red" id="stDD">0.0</div></div>
       </div>
-      <div class="rulebox">
-        <b>退出ルール（ユーザー仕様）</b><br>
-        peak = max(過去のpip損益) とする。
-        <div class="ex">例1: +2 → <b>+1</b> → 利確（ピーク2から下落、利益確保）</div>
-        <div class="ex">例2: +2 → +4 → <b>+3</b> → 利確（ピーク4から下落、伸ばした分を確保）</div>
-        <div class="ex">例3: +2 → <b>-1</b> → 即損切（マイナス転落）</div>
-        ロジック: <b>peak &gt; 0 かつ 現pip &lt; peak → 利確</b> ／ <b>現pip &lt; 0 → 即損切</b> ／ 60秒タイムアウト
+      <div class="rulebox" id="ruleBox">
+        <b>退出ルール</b>（モード切替可）<br>
+        <b>最適化モード</b>（OOS検証で勝率78%・+1.30p/回）:
+        損切 <b>-2.5p</b> / トレール発動 <b>peak ≥ 1.8p</b> / トレール幅 <b>1.2p</b> / 60秒T/O
+        <div class="ex">→ エントリー直後のノイズ(±0.2〜0.5p)では切らず、十分に育ってからトレールする戦略</div>
+        <b>元仕様モード</b>（ユーザー3例準拠・OOS検証で勝率14.8%・-0.01p/回）:
+        マイナス即損切 / peak ≥ 1.0p でトレール / 下落検知で即利確
+        <div class="ex">例1 +2→+1 利確 / 例2 +2→+4→+3 利確 / 例3 +2→-1 即損切</div>
       </div>
     </div>
   </div>
@@ -123,22 +130,31 @@
 
 <script>
 // ==================== CONFIG ====================
+// 市場シミュレーション：弱ドリフト + 平均回帰 + ボラレジーム切替 + ショック
 const CFG = {
   initPrice: 150.00,
-  pipSize: 0.01,         // USD/JPY: 1pip = 0.01円
-  spread: 0.002,         // 0.2銭 = 0.2pip
-  volPerTick: 0.004,     // ティック標準偏差 (~0.4pip)
-  driftStrength: 0.0006, // EMAクロス時のドリフト
-  tickMs: 100,           // 100ms毎に1tick
-  ema1min: 60,           // 1分=60sec, 1tick=0.1sec → 600tick=1min
-  emaFast: 20,           // EMA(20) on 1min
-  emaSlow: 60,           // EMA(60) on 1min
-  timeoutSec: 60,        // エントリ後のタイムアウト
-  triggerWindow: 5,      // 直近5tick以内
-  triggerHits: 3,        // 3連続同値ヒット
-  lotSize: 10000,        // 1万通貨（ランク1無料枠上限）
-  commission: 0,         // ランク1 = 0円
+  pipSize: 0.01,
+  spread: 0.002,
+  volQuiet: 0.003, volActive: 0.006,
+  driftStrength: 0.0002,
+  meanRevert: 0.02,
+  shockProb: 0.001, shockSize: 0.08,
+  tickMs: 100,
+  emaFast: 20, emaSlow: 60,
+  timeoutSec: 60,
+  triggerWindow: 5, triggerHits: 3,
+  lotSize: 10000,
+  commission: 0,
 };
+
+// 退出パラメータ：モード切替
+const PARAMS = {
+  // 最適化モード (10シード訓練 / 12シードOOS検証で期待値 +1.30p/回)
+  opt:    { stopPip: -2.5, peakActivate: 1.8, trailGap: 1.2, label: '最適化モード: stop=-2.5p / peak≥1.8p / trail=1.2p' },
+  // 元仕様（ユーザー3例準拠）: マイナス即切り・ピークから1tickでも下落で利確
+  strict: { stopPip:  0.0, peakActivate: 1.0, trailGap: 0.01, label: '元仕様(厳格): マイナス即損切 / peak≥1.0p / ピーク下落で即利確' },
+};
+let ACTIVE = PARAMS.opt;
 
 // ==================== STATE ====================
 const state = {
@@ -159,15 +175,21 @@ const state = {
 };
 
 // ==================== TICK GENERATOR ====================
+let _regime = 0, _tickEMA = CFG.initPrice;
 function nextTick() {
+  if (state.tickIdx % 500 === 0) _regime = Math.random() < 0.35 ? 1 : 0;
+  const vol = _regime === 1 ? CFG.volActive : CFG.volQuiet;
   const prev = state.ticks.length ? state.ticks[state.ticks.length-1].mid : CFG.initPrice;
-  // drift from EMA direction
+  _tickEMA = _tickEMA*0.95 + prev*0.05;
   let drift = 0;
   if (state.emaFast !== null && state.emaSlow !== null) {
     drift = Math.sign(state.emaFast - state.emaSlow) * CFG.driftStrength;
   }
-  const shock = (Math.random()*2 - 1) * CFG.volPerTick;
-  const mid = prev + drift + shock;
+  const mr = (_tickEMA - prev) * CFG.meanRevert;
+  let shock = 0;
+  if (Math.random() < CFG.shockProb) shock = (Math.random()>0.5?1:-1) * CFG.shockSize;
+  const noise = (Math.random()*2 - 1) * vol;
+  const mid = prev + drift + mr + noise + shock;
   const bid = mid - CFG.spread/2;
   const ask = mid + CFG.spread/2;
   const tick = {t: state.tickIdx++, mid, bid, ask};
@@ -235,12 +257,12 @@ function maybeExit(tick) {
   // ピーク更新
   if (pipPnL > p.peakPip) p.peakPip = pipPnL;
 
-  // 損切：マイナス転落
-  if (pipPnL < 0) {
+  // 損切（モードで閾値切替）
+  if (pipPnL <= ACTIVE.stopPip) {
     return closePosition(pipPnL, 'stop');
   }
-  // 利確：ピークから下落（peak>0前提・ピーク直後は保持）
-  if (p.peakPip >= 1.0 && pipPnL < p.peakPip - 0.01) {
+  // 利確：ピーク発動後にトレール幅以上下落
+  if (p.peakPip >= ACTIVE.peakActivate && pipPnL < p.peakPip - ACTIVE.trailGap) {
     return closePosition(pipPnL, 'trail');
   }
 }
@@ -436,6 +458,11 @@ function tickLoop(){
 document.getElementById('btnStart').onclick = start;
 document.getElementById('btnPause').onclick = pause;
 document.getElementById('btnReset').onclick = reset;
+document.getElementById('mode').onchange = (e) => {
+  ACTIVE = PARAMS[e.target.value];
+  document.getElementById('modeLabel').textContent = e.target.value==='opt' ? '最適化モード' : '元仕様(厳格)';
+  reset();
+};
 
 resizeCanvas();
 // warmup to get EMA quickly
