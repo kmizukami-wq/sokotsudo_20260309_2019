@@ -10,15 +10,15 @@
 //+------------------------------------------------------------------+
 //| 外部パラメータ                                                    |
 //+------------------------------------------------------------------+
-input int    MagicNumberBase   = 10000;   // MagicNumber base (Auto時はbase+symbol_hash)
-input bool   AutoMagicPerPair  = true;    // true=通貨ペア毎に自動振り分け (推奨)
+input int    MagicNumberBase   = 10000;   // MagicNumber base (Auto=base+symbol_hash)
+input bool   AutoMagicPerPair  = true;    // true=auto per-pair magic (recommended)
 input double RiskPercent       = 0.8;     // Risk per trade (%)
 input double RR_Ratio          = 2.0;     // Risk:Reward ratio
 input double SL_ATR_Mult_BB    = 2.0;     // BB reversal SL multiplier
 input double SL_ATR_Mult_FBB   = 1.8;     // Fast BB SL multiplier
 input double SL_ATR_Mult_PB    = 1.5;     // Pullback SL multiplier
 input double ATR_Filter_Mult   = 2.5;     // ATR filter multiplier
-input double MaxSpreadPips     = 3.0;     // Max spread (pips) ※超過時エントリー停止
+input double MaxSpreadPips     = 3.0;     // Max spread (pips) - block entry if exceeded
 input double BE_Trigger_RR     = 1.0;     // Breakeven trigger RR
 input double Partial_Close_RR  = 1.5;     // Partial close trigger RR
 input double Partial_Close_Pct = 0.5;     // Partial close ratio (0.5=50%)
@@ -27,8 +27,8 @@ input int    MaxHoldingBars    = 20;      // Max holding bars
 input double Martin1           = 1.0;     // Martingale Stage1
 input double Martin2           = 1.5;     // Martingale Stage2
 input double Martin3           = 2.0;     // Martingale Stage3
-input int    TradingHourStart  = 0;       // Trading start hour (UTC) ※JST=+9時間
-input int    TradingHourEnd    = 21;      // Trading end hour (UTC) ※UTC 21=JST翌6 (夏時間注意)
+input int    TradingHourStart  = 0;       // Trading start hour (UTC) [JST = UTC + 9]
+input int    TradingHourEnd    = 21;      // Trading end hour (UTC) [UTC 21 = JST 6am next day]
 input double MonthlyDDLimit    = 15.0;    // Monthly DD stop (%)
 input double AnnualDDLimit     = 20.0;    // Annual DD stop (%)
 input int    Slippage          = 10;      // Slippage (points)
@@ -73,7 +73,7 @@ int g_magicNumber = 0;
 //+------------------------------------------------------------------+
 //| 時刻関連ユーティリティ                                            |
 //+------------------------------------------------------------------+
-input int    ServerGMTOffset   = 3;       // Server GMT offset ※FXTF夏=3 冬=2 (DST切替注意)
+input int    ServerGMTOffset   = 3;       // Server GMT offset [FXTF summer=3, winter=2] (DST)
 
 int SymbolHash(string sym)
 {
