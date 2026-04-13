@@ -4,7 +4,7 @@
 //| 15分足専用 / 7通貨ペア同時稼働対応                                |
 //+------------------------------------------------------------------+
 #property copyright "sokotsudo research"
-#property version   "1.05"
+#property version   "1.06"
 #property strict
 
 //+------------------------------------------------------------------+
@@ -33,6 +33,8 @@ input double MonthlyDDLimit    = 15.0;    // Monthly DD stop (%)
 input double AnnualDDLimit     = 20.0;    // Annual DD stop (%)
 input int    Slippage          = 10;      // Slippage (points)
 input double MaxLot            = 0.10;    // Max lot per entry (set to FXTF Rank1 cap)
+input bool   WeekendCloseEnable = true;   // Close all positions before weekend
+input int    WeekendCloseHourUTC = 18;    // UTC 18 = JST Sat 3am (NY close)
 
 //+------------------------------------------------------------------+
 //| シグナルタイプ定数                                                |
@@ -100,6 +102,22 @@ int GetUTCHour()
    // ログ用: サーバー時刻 → UTC変換
    datetime utcTime = TimeCurrent() - ServerGMTOffset * 3600;
    return TimeHour(utcTime);
+}
+
+//+------------------------------------------------------------------+
+//| 週末モード判定 (Fri 18:00 UTC〜Sun 22:00 UTC)                     |
+//| = JST 土曜3:00 〜 月曜7:00                                        |
+//+------------------------------------------------------------------+
+bool IsWeekendMode()
+{
+   if(!WeekendCloseEnable) return false;
+   datetime utcTime = TimeCurrent() - ServerGMTOffset * 3600;
+   int dow  = TimeDayOfWeek(utcTime);   // 0=Sun, 5=Fri, 6=Sat
+   int hour = TimeHour(utcTime);
+   if(dow == 5 && hour >= WeekendCloseHourUTC) return true;  // 金曜カットオフ後
+   if(dow == 6) return true;                                  // 土曜全日
+   if(dow == 0 && hour < 22) return true;                     // 日曜22:00UTCまで
+   return false;
 }
 
 //+------------------------------------------------------------------+
@@ -352,6 +370,38 @@ double GetSLMultiplier(int sigType)
    if(absSig == 2) return SL_ATR_Mult_FBB;  // 高速BB
    if(absSig == 3) return SL_ATR_Mult_PB;   // 押し目
    return SL_ATR_Mult_PB;
+}
+
+//+------------------------------------------------------------------+
+//| 全ポジション強制決済（週末クローズ用）                            |
+//+------------------------------------------------------------------+
+void ForceCloseAllPositions()
+{
+   int attempts = 0;
+   while(attempts < 10)
+   {
+      int ticket = FindMyOrder();
+      if(ticket < 0) break;
+      if(!OrderSelect(ticket, SELECT_BY_TICKET)) break;
+      double price = (OrderType() == OP_BUY)
+                   ? MarketInfo(Symbol(), MODE_BID)
+                   : MarketInfo(Symbol(), MODE_ASK);
+      if(OrderClose(ticket, OrderLots(), price, Slippage, clrGray))
+      {
+         Print("[Weekend] Force close: ", Symbol(), " ticket=", ticket,
+               " lots=", OrderLots(), " price=", price);
+         g_beActivated = false;
+         g_partialClosed = false;
+         g_currentTicket = -1;
+         SaveState();
+      }
+      else
+      {
+         Print("[Weekend] Close failed: err=", GetLastError(), " ticket=", ticket);
+         break;
+      }
+      attempts++;
+   }
 }
 
 //+------------------------------------------------------------------+
@@ -616,7 +666,8 @@ void CheckDDStop()
 //+------------------------------------------------------------------+
 void TryEntry()
 {
-   if(FindMyOrder() >= 0) return;  // 既にポジションあり
+   if(IsWeekendMode()) return;      // 週末は絶対エントリーしない
+   if(FindMyOrder() >= 0) return;   // 既にポジションあり
 
    int signal = CheckSignals();
    if(signal == SIG_NONE) return;
@@ -739,6 +790,16 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnTick()
 {
+   // 週末モード: 金UTC18:00(JST土3:00)〜日UTC22:00(月JST7:00)
+   //   → 全ポジ強制決済、新規エントリー停止
+   if(IsWeekendMode())
+   {
+      if(FindMyOrder() >= 0)
+         ForceCloseAllPositions();
+      Comment("Weekend mode - trading paused until Mon JST 7:00");
+      return;
+   }
+
    // 新しい15分バーでのみ処理
    if(!IsNewBar())
    {
