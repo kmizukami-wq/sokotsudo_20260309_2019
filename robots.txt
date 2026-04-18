@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /google*.html
+
+Sitemap: https://sokotsudo.com/sitemap.xml
