@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -593,6 +594,7 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
   .footer-top { grid-template-columns: 1fr 1fr; }
 }
 </style>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body>
 
@@ -1030,7 +1032,8 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
           </div>
         </div>
 
-        <div style="display:flex;gap:12px;margin-top:24px;">
+        <div class="cf-turnstile" data-sitekey="0x4AAAAAAC_oXRrYWjg7pCkf" style="margin-top:16px;"></div>
+        <div style="display:flex;gap:12px;margin-top:16px;">
           <button class="btn-outline" onclick="switchVisit(1)">← 戻る</button>
           <button class="btn-primary" onclick="submitVisitForm(this)">見学を予約する</button>
         </div>
@@ -1335,6 +1338,7 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
           <input type="checkbox" id="privacyCheck" onchange="checkConsent()" style="width:18px;height:18px;accent-color:var(--gold);flex-shrink:0;margin-top:2px;">
           <span style="font-size:14px;color:var(--white);line-height:1.6;"><a href="/privacy.html" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:underline;">プライバシーポリシー</a>に同意し、個人情報の利用目的について承諾します</span>
         </label>
+        <div class="cf-turnstile" data-sitekey="0x4AAAAAAC_oXRrYWjg7pCkf" style="margin-bottom:16px;"></div>
         <div style="display:flex;gap:12px;">
           <button class="btn-outline" onclick="goApply(3)">← 戻る</button>
           <button class="btn-primary" id="nextFromConsent" disabled style="flex:1;" onclick="submitApplyFlow(this)">次へ：今後の流れ →</button>
@@ -1438,6 +1442,7 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
           <label for="contactMessage">お問い合わせ内容</label>
           <textarea class="cform-textarea" id="contactMessage" name="message" placeholder="ご質問・ご相談内容をお聞かせください"></textarea>
         </div>
+        <div class="cf-turnstile" data-sitekey="0x4AAAAAAC_oXRrYWjg7pCkf" style="margin-bottom:16px;"></div>
         <button class="btn-primary" type="submit" style="width:100%;" id="contactSubmitBtn" onclick="submitContactForm(this)">送信する</button>
       </form>
     </div>
@@ -1550,7 +1555,7 @@ function submitContactForm(btn) {
   fetch('https://jbnhvwncddvvtpaigzeq.supabase.co/functions/v1/form-contact', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: name, email: email, tel: tel, type: type, message: body })
+    body: JSON.stringify({ name: name, email: email, tel: tel, type: type, message: body, 'cf-turnstile-response': (document.querySelector('#contact .cf-turnstile [name=cf-turnstile-response]')||{}).value || '' })
   })
   .then(function(r) { return r.json(); })
   .then(function(data) {
@@ -1921,6 +1926,7 @@ async function submitApplyData() {
         bldg:     (document.getElementById('infoBldg')   ||{}).value||'',
         tel:      (document.getElementById('infoTel')    ||{}).value||'',
         email:    (document.getElementById('infoEmail')  ||{}).value||'',
+        'cf-turnstile-response': (document.querySelector('#apply .cf-turnstile [name=cf-turnstile-response]')||{}).value || '',
       })
     });
     if (!res.ok) return false;
@@ -1974,7 +1980,8 @@ function submitVisitForm(btn) {
       name: name, tel: tel, email: email,
       location: location, date: date, time: time,
       headcount: headcount, has_bones: hasBones,
-      bone_count: boneCount, bone_location: boneLoc, bone_address: boneAddr
+      bone_count: boneCount, bone_location: boneLoc, bone_address: boneAddr,
+      'cf-turnstile-response': (document.querySelector('#visit .cf-turnstile [name=cf-turnstile-response]')||{}).value || ''
     })
   })
   .then(function(r) { return r.json(); })
