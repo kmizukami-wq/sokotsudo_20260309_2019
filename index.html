@@ -39,7 +39,7 @@
   "image": "https://sokotsudo.com/og-image.png",
   "telephone": "0120-XXX-XXX",
   "email": "info@sokotsudo.com",
-  "priceRange": "¥¥",
+  "priceRange": "¥90,000〜¥1,300,000",
   "address": {
     "@type": "PostalAddress",
     "streetAddress": "蔵前4-33-9",
@@ -90,22 +90,46 @@
       {
         "@type": "Offer",
         "itemOffered": { "@type": "Service", "name": "基本契約（契約金）" },
-        "price": "90000",
-        "priceCurrency": "JPY",
-        "description": "契約金（税込）"
+        "priceSpecification": {
+          "@type": "PriceSpecification",
+          "price": "90000",
+          "priceCurrency": "JPY",
+          "valueAddedTaxIncluded": true
+        },
+        "description": "契約金（税込）・寺院により変動する場合があります"
       },
       {
         "@type": "Offer",
         "itemOffered": { "@type": "Service", "name": "年間管理費" },
-        "price": "36000",
-        "priceCurrency": "JPY",
-        "description": "年間管理費（税込）・年1回の送骨を含む"
+        "priceSpecification": {
+          "@type": "PriceSpecification",
+          "minPrice": "36000",
+          "priceCurrency": "JPY",
+          "valueAddedTaxIncluded": true
+        },
+        "description": "年間管理費（税込）・年1回の送骨を含む。寺院により変動します"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": { "@type": "Service", "name": "寺院への志納金" },
+        "priceSpecification": {
+          "@type": "PriceSpecification",
+          "minPrice": "10000",
+          "maxPrice": "20000",
+          "priceCurrency": "JPY",
+          "valueAddedTaxIncluded": true
+        },
+        "description": "寺院への志納金（税込）・寺院により¥10,000〜¥20,000で変動"
       },
       {
         "@type": "Offer",
         "itemOffered": { "@type": "Service", "name": "追加送骨" },
-        "price": "30000",
-        "priceCurrency": "JPY",
+        "priceSpecification": {
+          "@type": "PriceSpecification",
+          "price": "30000",
+          "priceCurrency": "JPY",
+          "valueAddedTaxIncluded": true
+        },
         "description": "追加送骨1回あたり（税込）"
       }
     ]
@@ -863,7 +887,7 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
           <div class="est-line" id="estExtraLine" style="display:none"><span>追加送骨料</span><span id="estExtraAmt">¥30,000/回</span></div>
           <div class="est-line total" id="estTotal"><span>概算合計</span><span id="estTotalAmt">¥228,000〜</span></div>
         </div>
-        <a href="#apply" class="btn-primary" style="width:100%;text-align:center;display:block;">このプランで申込む</a>
+        <button type="button" class="btn-primary" onclick="applyFromEstimate()" style="width:100%;text-align:center;display:block;border:none;">このプランで申込む</button>
       </div>
     </div>
   </div>
@@ -901,7 +925,7 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
         </div>
         <div class="loc-card" onclick="selectLoc(this)">
           <div class="loc-name">サンプル3  永代供養墓</div>
-          <div class="loc-area">東京都</div>
+          <div class="loc-area">東京都江東区</div>
         </div>
         <div class="loc-card" onclick="selectLoc(this)">
           <div class="loc-name">サンプル寺　永代供養墓</div>
@@ -1008,6 +1032,25 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
         <div style="display:flex;gap:12px;margin-top:24px;">
           <button class="btn-outline" onclick="switchVisit(1)">← 戻る</button>
           <button class="btn-primary" onclick="submitVisitForm(this)">見学を予約する</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="vstep3" class="visit-panel">
+      <div style="text-align:center;padding:40px 0;">
+        <div style="font-size:48px;color:var(--gold);margin-bottom:12px;line-height:1;">✓</div>
+        <h3 style="font-family:var(--serif);font-size:22px;color:var(--navy2);margin-bottom:12px;">見学予約を受け付けました</h3>
+        <p style="font-size:14px;color:var(--muted);line-height:1.9;margin-bottom:24px;">
+          ご登録ありがとうございます。<br>
+          担当者よりご連絡のうえ、詳細をご案内いたします。
+        </p>
+        <div style="background:var(--off);border-left:3px solid var(--gold);padding:20px;max-width:440px;margin:0 auto 24px;text-align:left;">
+          <div style="font-size:11px;letter-spacing:0.3em;color:var(--gold);margin-bottom:8px;">CONTACT</div>
+          <div style="font-size:14px;color:var(--text);line-height:1.7;">
+            お急ぎの場合はお電話ください：<br>
+            <strong style="font-family:var(--serif);font-size:18px;color:var(--navy2);">0120-XXX-XXX</strong><br>
+            <span style="font-size:12px;color:var(--muted);">受付時間 10:00〜17:00（年中無休）</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1137,9 +1180,9 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
             <div class="temple-card-area">千葉県市川市 · 浄土真宗</div>
             <div style="margin-top:4px;font-size:10px;opacity:0.6;">永代供養 · QR管理 · 個別安置</div>
           </div>
-          <div class="temple-card" onclick="selectTemple(this,'サンプル3  永代供養墓','東京都',90000,10000)">
+          <div class="temple-card" onclick="selectTemple(this,'サンプル3  永代供養墓','東京都江東区',90000,10000)">
             <div class="temple-card-name">サンプル3  永代供養墓</div>
-            <div class="temple-card-area">東京都 · 真言宗</div>
+            <div class="temple-card-area">東京都江東区 · 真言宗</div>
             <div style="margin-top:4px;font-size:10px;opacity:0.6;">永代供養 · QR管理 · 個別安置</div>
           </div>
           <div class="temple-card" onclick="selectTemple(this,'サンプル寺　永代供養墓','東京都台東区',90000,20000)">
@@ -1212,7 +1255,7 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
             <div>
               <label style="display:block;font-size:12px;color:var(--gold-light);margin-bottom:6px;">ご年齢 <span style="color:#e55;">*</span></label>
-              <input type="number" id="infoAge" autocomplete="off" placeholder="例：65" min="0" max="120" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:var(--white);font-size:14px;box-sizing:border-box;">
+              <input type="number" id="infoAge" autocomplete="off" placeholder="例:65" min="0" max="120" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:var(--white);font-size:14px;box-sizing:border-box;">
             </div>
             <div></div>
           </div>
@@ -1260,7 +1303,7 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
           </div>
           <div>
             <label style="display:block;font-size:12px;color:var(--gold-light);margin-bottom:6px;">メールアドレス（確認） <span style="color:#e55;">*</span></label>
-            <input type="email" id="infoEmail2" autocomplete="email" inputmode="email" placeholder="example@mail.com（再入力）" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:var(--white);font-size:14px;box-sizing:border-box;">
+            <input type="email" id="infoEmail2" autocomplete="email" inputmode="email" placeholder="example@mail.com(再入力)" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:var(--white);font-size:14px;box-sizing:border-box;">
           </div>
         </div>
         <div id="infoError" style="color:#e55;font-size:13px;margin-bottom:12px;display:none;"></div>
@@ -1283,13 +1326,17 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
           第7条（個人情報）お客様の個人情報は、プライバシーポリシーに従い適切に管理します。<br><br>
           ※全文は<a href="/terms.html" target="_blank" style="color:var(--gold-light);">利用規約ページ</a>をご確認ください。
         </div>
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:24px;">
-          <input type="checkbox" id="consentCheck" onchange="checkConsent()" style="width:18px;height:18px;accent-color:var(--gold);">
-          <span style="font-size:14px;color:var(--white);">上記の規約に同意します</span>
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:12px;">
+          <input type="checkbox" id="consentCheck" onchange="checkConsent()" style="width:18px;height:18px;accent-color:var(--gold);flex-shrink:0;margin-top:2px;">
+          <span style="font-size:14px;color:var(--white);line-height:1.6;"><a href="/terms.html" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:underline;">利用規約</a>に同意します</span>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:24px;">
+          <input type="checkbox" id="privacyCheck" onchange="checkConsent()" style="width:18px;height:18px;accent-color:var(--gold);flex-shrink:0;margin-top:2px;">
+          <span style="font-size:14px;color:var(--white);line-height:1.6;"><a href="/privacy.html" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:underline;">プライバシーポリシー</a>に同意し、個人情報の利用目的について承諾します</span>
         </label>
         <div style="display:flex;gap:12px;">
           <button class="btn-outline" onclick="goApply(3)">← 戻る</button>
-          <button class="btn-primary" id="nextFromConsent" disabled style="flex:1;" onclick="markStepCompleted(5);submitApplyData();goApply(5)">次へ：今後の流れ →</button>
+          <button class="btn-primary" id="nextFromConsent" disabled style="flex:1;" onclick="submitApplyFlow(this)">次へ：今後の流れ →</button>
         </div>
       </div>
 
@@ -1527,18 +1574,18 @@ function switchTab(btn, panelId) {
 // ── Temple data (auto-generated by sync-web) ──
 var estTemples = [
   { name:'サンプル2寺　納骨堂', area:'千葉県', city:'市川市', sect:'浄土真宗', price:90000, kinugi:10000, annualFee:36000 },
-  { name:'サンプル3  永代供養墓', area:'東京都', city:'', sect:'真言宗', price:90000, kinugi:10000, annualFee:36000 },
+  { name:'サンプル3  永代供養墓', area:'東京都江東区', city:'', sect:'真言宗', price:90000, kinugi:10000, annualFee:36000 },
   { name:'サンプル寺　永代供養墓', area:'東京都', city:'台東区', sect:'浄土宗', price:90000, kinugi:20000, annualFee:36000 },
   { name:'サンプル寺　納骨堂', area:'東京都', city:'中央区', sect:'宗派不問', price:90000, kinugi:10000, annualFee:36000 }
 ];
 var temples = [
   { name:'サンプル2寺　納骨堂', area:'千葉県', city:'市川市', sect:'浄土真宗', price:90000, kinugi:10000, annualFee:36000, tags:['永代供養','QR管理','個別安置'] },
-  { name:'サンプル3  永代供養墓', area:'東京都', city:'', sect:'真言宗', price:90000, kinugi:10000, annualFee:36000, tags:['永代供養','QR管理','個別安置'] },
+  { name:'サンプル3  永代供養墓', area:'東京都江東区', city:'', sect:'真言宗', price:90000, kinugi:10000, annualFee:36000, tags:['永代供養','QR管理','個別安置'] },
   { name:'サンプル寺　永代供養墓', area:'東京都', city:'台東区', sect:'浄土宗', price:90000, kinugi:20000, annualFee:36000, tags:['永代供養','QR管理','個別安置'] },
   { name:'サンプル寺　納骨堂', area:'東京都', city:'中央区', sect:'宗派不問', price:90000, kinugi:10000, annualFee:36000, tags:['永代供養','QR管理','個別安置'] }
 ];
-var searchAreas = ["千葉県","東京都"];
-var searchAreaCityMap = {"千葉県":["市川市"],"東京都":["中央区","台東区"]};
+var searchAreas = ["千葉県","東京都","東京都江東区"];
+var searchAreaCityMap = {"千葉県":["市川市"],"東京都江東区":[],"東京都":["中央区","台東区"]};
 var searchSects = ["宗派不問","浄土宗","浄土真宗","真言宗"];
 
 function initEstArea() {
@@ -1769,7 +1816,7 @@ function nextFromInfo() {
     {id:'infoStreet', label:'番地以降'},
     {id:'infoTel',    label:'電話番号'},
     {id:'infoEmail',  label:'メールアドレス'},
-    {id:'infoEmail2', label:'メールアドレス（確認）'},
+    {id:'infoEmail2', label:'メールアドレス(確認)'},
   ];
   var errEl = document.getElementById('infoError');
   for (var i = 0; i < required.length; i++) {
@@ -1845,7 +1892,7 @@ function updateApplySummary() {
   var box    = 20000;
   var total  = applyState.contract + applyState.kinugi + manage + box;
   function s(id, v) { var e = document.getElementById(id); if(e) e.textContent = v; }
-  s('apTemple',   applyState.temple || '（未選択）');
+  s('apTemple',   applyState.temple || '(未選択)');
   s('apPeriod',   applyState.period + '年');
   s('apContract', '¥' + applyState.contract.toLocaleString());
   s('apKinugi',   '¥' + applyState.kinugi.toLocaleString());
@@ -1853,27 +1900,53 @@ function updateApplySummary() {
   s('apBox',      '¥20,000');
   s('apTotal',    '¥' + total.toLocaleString());
 }
-function submitApplyData() {
-  fetch('https://jbnhvwncddvvtpaigzeq.supabase.co/functions/v1/form-apply', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      temple:   applyState.temple,
-      contract: applyState.contract,
-      kinugi:   applyState.kinugi,
-      period:   applyState.period,
-      name:     (document.getElementById('infoName')   ||{}).value||'',
-      kana:     (document.getElementById('infoKana')   ||{}).value||'',
-      age:      (document.getElementById('infoAge')    ||{}).value||'',
-      zip:      (document.getElementById('infoZip')    ||{}).value||'',
-      pref:     (document.getElementById('infoPref')   ||{}).value||'',
-      city:     (document.getElementById('infoCity')   ||{}).value||'',
-      street:   (document.getElementById('infoStreet') ||{}).value||'',
-      bldg:     (document.getElementById('infoBldg')   ||{}).value||'',
-      tel:      (document.getElementById('infoTel')    ||{}).value||'',
-      email:    (document.getElementById('infoEmail')  ||{}).value||'',
-    })
-  }).catch(function() {});
+async function submitApplyData() {
+  try {
+    var res = await fetch('https://jbnhvwncddvvtpaigzeq.supabase.co/functions/v1/form-apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        temple:   applyState.temple,
+        contract: applyState.contract,
+        kinugi:   applyState.kinugi,
+        period:   applyState.period,
+        name:     (document.getElementById('infoName')   ||{}).value||'',
+        kana:     (document.getElementById('infoKana')   ||{}).value||'',
+        age:      (document.getElementById('infoAge')    ||{}).value||'',
+        zip:      (document.getElementById('infoZip')    ||{}).value||'',
+        pref:     (document.getElementById('infoPref')   ||{}).value||'',
+        city:     (document.getElementById('infoCity')   ||{}).value||'',
+        street:   (document.getElementById('infoStreet') ||{}).value||'',
+        bldg:     (document.getElementById('infoBldg')   ||{}).value||'',
+        tel:      (document.getElementById('infoTel')    ||{}).value||'',
+        email:    (document.getElementById('infoEmail')  ||{}).value||'',
+      })
+    });
+    if (!res.ok) return false;
+    var data = await res.json().catch(function() { return {}; });
+    // data.success === false なら失敗、それ以外（未定義含む）は成功扱い
+    return data.success !== false;
+  } catch (e) {
+    return false;
+  }
+}
+
+// 申込送信フロー：ボタン無効化 → 送信 → 成功時のみ完了画面へ
+async function submitApplyFlow(btn) {
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  var originalText = btn.textContent;
+  btn.textContent = '送信中…';
+  var ok = await submitApplyData();
+  if (ok) {
+    markStepCompleted(5);
+    goApply(5);
+    // 画面遷移後はボタンを戻さない（重複遷移防止）
+  } else {
+    btn.disabled = false;
+    btn.textContent = originalText;
+    alert('申込の送信に失敗しました。\nお手数ですが、しばらくしてから再度お試しいただくか、お電話（0120-XXX-XXX）でご連絡ください。');
+  }
 }
 
 function submitVisitForm(btn) {
@@ -1918,9 +1991,66 @@ function submitVisitForm(btn) {
 }
 
 function checkConsent() {
-  var cb  = document.getElementById('consentCheck');
+  var cb1 = document.getElementById('consentCheck');
+  var cb2 = document.getElementById('privacyCheck');
   var btn = document.getElementById('nextFromConsent');
-  if (btn) btn.disabled = !cb.checked;
+  var ok = !!(cb1 && cb1.checked && cb2 && cb2.checked);
+  if (btn) btn.disabled = !ok;
+}
+
+// 見積もり → 申込 への条件引き継ぎ
+function applyFromEstimate() {
+  var templeName = (document.getElementById('estTemple') || {}).value || '';
+  var period = parseInt((document.getElementById('estPeriod') || {}).value) || 3;
+
+  if (!templeName) {
+    alert('まず「ご希望エリア」と「送骨堂」を選択してください。');
+    var estArea = document.getElementById('estArea');
+    if (estArea) estArea.focus();
+    return;
+  }
+
+  var t = estTemples.find(function(x) { return x.name === templeName; });
+  if (!t) {
+    // フォールバック：取得失敗時は申込セクションへ単純遷移
+    location.hash = '#apply';
+    return;
+  }
+
+  // applyState に反映
+  applyState.temple    = t.name;
+  applyState.contract  = t.price;
+  applyState.kinugi    = t.kinugi;
+  applyState.annualFee = t.annualFee || 36000;
+  applyState.period    = period;
+
+  // 申込画面の temple-card を選択状態にする（該当があれば）
+  document.querySelectorAll('.temple-card').forEach(function(card) {
+    card.classList.remove('selected');
+    var nameEl = card.querySelector('.temple-card-name');
+    if (nameEl && nameEl.textContent.trim() === t.name.trim()) {
+      card.classList.add('selected');
+    }
+  });
+
+  // 管理期間スライダ・表示を更新
+  var slider = document.getElementById('periodSlider');
+  if (slider) slider.value = period;
+  var periodDisplay = document.getElementById('periodDisplay');
+  if (periodDisplay) periodDisplay.textContent = period;
+  var yearLabel = document.getElementById('periodYearLabel');
+  if (yearLabel) yearLabel.textContent = period;
+  var feeDisplay = document.getElementById('periodFeeDisplay');
+  if (feeDisplay) feeDisplay.textContent = '¥' + (applyState.annualFee * period).toLocaleString();
+  var annualLabel = document.getElementById('periodAnnualFeeLabel');
+  if (annualLabel) annualLabel.textContent = applyState.annualFee.toLocaleString();
+
+  // 費用確認を更新
+  updateApplySummary();
+
+  // ①お寺の選択 → ②管理期間 までを完了扱いにして、③費用確認へ進める
+  markStepCompleted(2);
+  goApply(2);
 }
 
 function updateManageFeeBox() {
