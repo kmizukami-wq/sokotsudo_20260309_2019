@@ -362,7 +362,7 @@ body.drawer-open { overflow: hidden; }
 .hero-content { position: relative; z-index: 2; text-align: center; padding: 60px 24px; animation: fadeUp 1s ease both; }
 .hero-eyebrow { font-size: 11px; letter-spacing: 0.6em; color: var(--gold); margin-bottom: 32px; text-transform: uppercase; }
 .hero-title { font-family: var(--serif); font-size: clamp(24px, 5.5vw, 72px); font-weight: 300; color: var(--white); line-height: 1.4; margin-bottom: 16px; letter-spacing: 0.05em; word-break: keep-all; overflow-wrap: anywhere; }
-.hero-title strong { font-weight: 900; color: var(--gold-light); display: block; }
+.hero-title-accent { font-weight: 900; color: var(--gold-light); display: block; }
 .hero-sub { font-size: 15px; color: rgba(255,255,255,0.55); margin-bottom: 48px; line-height: 1.8; letter-spacing: 0.05em; }
 .hero-btns { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
 .btn-primary { background: var(--gold); color: var(--navy); padding: 14px 36px; border: none; border-radius: 2px; font-family: var(--sans); font-size: 14px; font-weight: 700; letter-spacing: 0.1em; cursor: pointer; text-decoration: none; display: inline-block; transition: all 0.2s; }
@@ -441,14 +441,14 @@ section { padding: 96px 40px; }
 /* VISIT */
 #visit { background: var(--off); }
 .visit-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-bottom: 48px; }
-.vstep { background: var(--white); border-radius: 4px; padding: 32px 24px; border: 2px solid transparent; cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s; }
+.vstep { background: var(--white); border-radius: 4px; padding: 32px 24px; border: 2px solid transparent; cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s; font: inherit; color: inherit; text-align: left; width: 100%; display: block; }
 .vstep.active { border-color: var(--gold); box-shadow: 0 4px 20px rgba(201,162,39,0.15); }
 .vstep-num { font-size: 11px; letter-spacing: 0.3em; color: var(--gold); margin-bottom: 8px; }
 .vstep-title { font-family: var(--serif); font-size: 16px; font-weight: 700; color: var(--navy2); }
 .visit-panel { display: none; }
 .visit-panel.active { display: block; }
 .location-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
-.loc-card { border: 2px solid #e0ddd8; border-radius: 4px; padding: 20px; cursor: pointer; transition: all 0.2s; text-align: center; }
+.loc-card { border: 2px solid #e0ddd8; border-radius: 4px; padding: 20px; cursor: pointer; transition: all 0.2s; text-align: center; background: var(--white); font: inherit; color: inherit; width: 100%; display: block; }
 .loc-card:hover, .loc-card.selected { border-color: var(--gold); background: var(--gold-pale); }
 .loc-name { font-family: var(--serif); font-size: 16px; font-weight: 700; color: var(--navy2); margin-bottom: 4px; }
 .loc-area { font-size: 12px; color: var(--muted); }
@@ -493,7 +493,7 @@ section { padding: 96px 40px; }
 #faq { background: var(--white); }
 .faq-list { max-width: 720px; margin-top: 40px; }
 .faq-item { border-bottom: 1px solid #f0ece6; overflow: hidden; }
-.faq-q { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; cursor: pointer; font-size: 15px; font-weight: 500; color: var(--navy2); gap: 16px; user-select: none; }
+.faq-q { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; cursor: pointer; font-size: 15px; font-weight: 500; color: var(--navy2); gap: 16px; user-select: none; background: none; border: none; width: 100%; text-align: left; font-family: inherit; }
 .faq-icon { width: 24px; height: 24px; border: 1px solid #e0ddd8; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--gold); flex-shrink: 0; transition: transform 0.2s; }
 .faq-item.open .faq-icon { transform: rotate(45deg); }
 .faq-a { font-size: 14px; color: var(--muted); line-height: 1.8; padding: 0 0 20px; display: none; }
@@ -511,7 +511,7 @@ section { padding: 96px 40px; }
 .apply-panel { display: none; }
 .apply-panel.active { display: block; }
 .temple-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
-.temple-card { border: 2px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 16px; cursor: pointer; transition: all 0.2s; }
+.temple-card { border: 2px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 16px; cursor: pointer; transition: all 0.2s; background: transparent; font: inherit; color: inherit; text-align: left; width: 100%; display: block; }
 .temple-card:hover, .temple-card.selected { border-color: var(--gold); background: rgba(201,162,39,0.08); }
 .temple-card-name { font-family: var(--serif); font-size: 15px; font-weight: 700; color: var(--white); margin-bottom: 4px; }
 .temple-card-area { font-size: 11px; color: rgba(255,255,255,0.4); }
@@ -561,6 +561,15 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
 @keyframes tabShake { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-4px); } 40%,80% { transform: translateX(4px); } }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes bounce { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(6px); } }
+
+/* A4: フォームフィードバック領域(aria-live) */
+.form-feedback { padding: 12px 16px; border-radius: 4px; margin: 12px 0; font-size: 14px; line-height: 1.6; }
+.form-feedback[hidden] { display: none; }
+.form-feedback.error { background: rgba(224,85,85,0.08); border: 1px solid rgba(224,85,85,0.4); color: #c93d3d; }
+.form-feedback.success { background: rgba(201,162,39,0.08); border: 1px solid rgba(201,162,39,0.4); color: #8b6f17; }
+/* 暗背景フォーム向けの色調整 */
+#apply .form-feedback.error, #visit-step-feedback.error { color: #ff8a8a; background: rgba(255,120,120,0.08); border-color: rgba(255,120,120,0.35); }
+#apply .form-feedback.success { color: var(--gold-light); background: rgba(201,162,39,0.12); border-color: rgba(201,162,39,0.45); }
 
 @media (max-width: 768px) {
   nav { padding: 0 16px; }
@@ -627,13 +636,13 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
     <span class="nav-tel">0120-XXX-XXX</span>
     <a href="#apply" class="nav-cta">お申込</a>
   </div>
-  <button class="hamburger" id="hamburgerBtn" onclick="toggleDrawer()" aria-label="メニューを開く">
+  <button class="hamburger" id="hamburgerBtn" onclick="toggleDrawer()" aria-label="メニューを開く" aria-expanded="false" aria-controls="mobileDrawer">
     <span></span><span></span><span></span>
   </button>
 </nav>
 
 <!-- MOBILE DRAWER -->
-<div class="mobile-drawer" id="mobileDrawer">
+<div class="mobile-drawer" id="mobileDrawer" role="dialog" aria-modal="true" aria-label="メインメニュー" aria-hidden="true">
   <div class="mobile-drawer-inner">
     <a href="#about" onclick="toggleDrawer()">送骨堂とは</a>
     <a href="#search" onclick="toggleDrawer()">送骨堂を探す</a>
@@ -681,7 +690,7 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
     </svg>
     <div class="hero-eyebrow">Sokotsudo — 招く供養</div>
     <h1 class="hero-title">
-      お墓を「参る」から<strong>お骨を「招く」時代へ。</strong>
+      お墓を「参る」から<span class="hero-title-accent">お骨を「招く」時代へ。</span>
     </h1>
     <p class="hero-sub">
       ご遺骨を、ご希望の日時にご自宅や施設へお届けします。<br>
@@ -811,7 +820,8 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
       <button class="btn-primary" onclick="updateResults()">検索する</button>
     </div>
 
-    <div class="results-list" style="margin-top:32px;" id="resultsList"></div>
+    <p style="font-size:12px;color:var(--muted);margin-top:24px;text-align:right;">※表示価格は全て税込です</p>
+    <div class="results-list" style="margin-top:8px;" id="resultsList"></div>
   </div>
 </section>
 
@@ -874,6 +884,8 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
           <div class="est-line" id="estExtraLine" style="display:none"><span>追加送骨料</span><span id="estExtraAmt">¥30,000/回</span></div>
           <div class="est-line total" id="estTotal"><span>概算合計</span><span id="estTotalAmt">¥228,000〜</span></div>
         </div>
+        <p style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:16px;">※表示価格は全て税込です</p>
+        <div id="estimateFeedback" class="form-feedback" role="alert" aria-live="assertive" hidden></div>
         <button type="button" class="btn-primary" onclick="applyFromEstimate()" style="width:100%;text-align:center;display:block;border:none;">このプランで申込む</button>
       </div>
     </div>
@@ -889,40 +901,41 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
     <p class="section-lead" style="margin-bottom:40px;">実際の送骨堂をご見学いただけます。専門スタッフがご案内いたします。</p>
 
     <div class="visit-steps">
-      <div class="vstep active" onclick="switchVisit(0)">
+      <button type="button" class="vstep active" onclick="switchVisit(0)">
         <div class="vstep-num">STEP 01</div>
         <div class="vstep-title">現場を選択</div>
-      </div>
-      <div class="vstep" onclick="switchVisit(1)">
+      </button>
+      <button type="button" class="vstep" onclick="switchVisit(1)">
         <div class="vstep-num">STEP 02</div>
         <div class="vstep-title">希望日時を入力</div>
-      </div>
-      <div class="vstep" onclick="switchVisit(2)">
+      </button>
+      <button type="button" class="vstep" onclick="switchVisit(2)">
         <div class="vstep-num">STEP 03</div>
         <div class="vstep-title">予約情報を入力</div>
-      </div>
+      </button>
     </div>
 
     <div id="vstep0" class="visit-panel active">
       <h3 style="font-family:var(--serif);font-size:18px;color:var(--navy2);margin-bottom:20px;">見学場所をお選びください</h3>
       <div class="location-grid" id="locGrid">
-        <div class="loc-card" onclick="selectLoc(this)">
+        <button type="button" class="loc-card" onclick="selectLoc(this)">
           <div class="loc-name">サンプル2寺　納骨堂</div>
           <div class="loc-area">千葉県市川市</div>
-        </div>
-        <div class="loc-card" onclick="selectLoc(this)">
+        </button>
+        <button type="button" class="loc-card" onclick="selectLoc(this)">
           <div class="loc-name">サンプル3　永代供養墓</div>
           <div class="loc-area">東京都江東区</div>
-        </div>
-        <div class="loc-card" onclick="selectLoc(this)">
+        </button>
+        <button type="button" class="loc-card" onclick="selectLoc(this)">
           <div class="loc-name">サンプル寺　永代供養墓</div>
           <div class="loc-area">東京都台東区</div>
-        </div>
-        <div class="loc-card" onclick="selectLoc(this)">
+        </button>
+        <button type="button" class="loc-card" onclick="selectLoc(this)">
           <div class="loc-name">サンプル寺　納骨堂</div>
           <div class="loc-area">東京都中央区</div>
-        </div>
+        </button>
       </div>
+      <div id="visitLocFeedback" class="form-feedback" role="alert" aria-live="assertive" hidden></div>
       <button class="btn-primary" onclick="nextFromLoc()">次へ：希望日時を入力 →</button>
     </div>
 
@@ -967,7 +980,7 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
           <label>ご要望・ご質問 <span style="color:var(--muted);">任意</span></label>
           <textarea class="vform-input" id="visitNote" rows="3" style="min-height:80px;resize:vertical;" placeholder="お車でお越しの方、上記時間以外をご希望の方など、お気軽にご記入ください"></textarea>
         </div>
-        <div id="visitDateError" style="color:#e05555;font-size:13px;margin-bottom:12px;display:none;"></div>
+        <div id="visitDateError" role="alert" aria-live="assertive" style="color:#e05555;font-size:13px;margin-bottom:12px;display:none;"></div>
       </div>
       <div style="margin-top:24px;display:flex;gap:12px;">
         <button class="btn-outline" onclick="switchVisit(0)">← 戻る</button>
@@ -1034,6 +1047,7 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
         </div>
 
         <div class="cf-turnstile" data-sitekey="0x4AAAAAAC_oXRrYWjg7pCkf" style="margin-top:16px;"></div>
+        <div id="visitFormFeedback" class="form-feedback" role="alert" aria-live="assertive" hidden></div>
         <div style="display:flex;gap:12px;margin-top:16px;">
           <button class="btn-outline" onclick="switchVisit(1)">← 戻る</button>
           <button class="btn-primary" onclick="submitVisitForm(this)">見学を予約する</button>
@@ -1113,7 +1127,7 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
       <tr><th>会社名</th><td>株式会社 送骨堂</td></tr>
       <tr><th>代表者</th><td>水上 由輝德</td></tr>
       <tr><th>事業内容</th><td>遺骨配送・管理サービス、寺院・納骨堂のマッチングサービス、墓じまい・改葬サポート、寺院のコンサルティング</td></tr>
-      <tr><th>許可・資格</th><td>貨物軽自動車運送事業（黒ナンバー）<br>商標登録・ビジネスモデル特許申請中（予定）</td></tr>
+      <tr><th>許可・資格</th><td>貨物軽自動車運送事業（黒ナンバー）<br>商標登録・ビジネスモデル特許申請中</td></tr>
       <tr><th>提携実績</th><td>600寺以上の寺院ネットワーク<br>NPO法人終活サポートセンター：5万人超の相談実績</td></tr>
       <tr><th>所在地</th><td>〒111-0051 東京都台東区蔵前4-33-9</td></tr>
       <tr><th>電話番号</th><td><span class="tel-pc">0120-XXX-XXX</span><a href="tel:0120XXXXXX" class="tel-sp">0120-XXX-XXX</a>（受付時間：毎日10:00〜17:00）</td></tr>
@@ -1129,31 +1143,31 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
     <div class="divider"></div>
     <div class="faq-list">
       <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)"><span>送骨堂と通常の納骨堂の違いは何ですか？</span><div class="faq-icon">+</div></div>
+        <button type="button" class="faq-q" onclick="toggleFaq(this)" aria-expanded="false"><span>送骨堂と通常の納骨堂の違いは何ですか？</span><span class="faq-icon" aria-hidden="true">+</span></button>
         <div class="faq-a">通常の納骨堂はご遺骨を預けお参りするスタイルですが、送骨堂はご希望の日時にご遺骨をご自宅や施設へお届けする「動く供養」が最大の特徴です。お参りに行けない方でも、大切な方をご自宅で供養していただけます。</div>
       </div>
       <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)"><span>ご遺骨の配送は安全ですか？</span><div class="faq-icon">+</div></div>
+        <button type="button" class="faq-q" onclick="toggleFaq(this)" aria-expanded="false"><span>ご遺骨の配送は安全ですか？</span><span class="faq-icon" aria-hidden="true">+</span></button>
         <div class="faq-a">専用の黒ナンバー貨物軽自動車を使用し、専門スタッフが直接お届けします。宅配便での配送は行いません。また、すべてのご遺骨はQRコードで管理され、いつでも状況を確認いただけます。送骨時も万全の対策を講じます。</div>
       </div>
       <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)"><span>宗派の制限はありますか？</span><div class="faq-icon">+</div></div>
+        <button type="button" class="faq-q" onclick="toggleFaq(this)" aria-expanded="false"><span>宗派の制限はありますか？</span><span class="faq-icon" aria-hidden="true">+</span></button>
         <div class="faq-a">提携寺院によって異なります。宗派不問の寺院も多くございます。検索時に「宗派で探す」からご確認いただけます。不明な場合はお気軽にご相談ください。</div>
       </div>
       <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)"><span>最低契約期間はありますか？</span><div class="faq-icon">+</div></div>
+        <button type="button" class="faq-q" onclick="toggleFaq(this)" aria-expanded="false"><span>最低契約期間はありますか？</span><span class="faq-icon" aria-hidden="true">+</span></button>
         <div class="faq-a">最低3年間からのご契約となります。3年経過後は引き続き更新いただくか、永代供養に切り替えていただくことができます。</div>
       </div>
       <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)"><span>年1回の送骨以外に追加でお届けはできますか？</span><div class="faq-icon">+</div></div>
+        <button type="button" class="faq-q" onclick="toggleFaq(this)" aria-expanded="false"><span>年1回の送骨以外に追加でお届けはできますか？</span><span class="faq-icon" aria-hidden="true">+</span></button>
         <div class="faq-a">はい、追加送骨は30,000円/回でご依頼いただけます。お盆・お彼岸・命日など、ご希望の日時にお届けいたします。</div>
       </div>
       <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)"><span>墓じまいのサポートもお願いできますか？</span><div class="faq-icon">+</div></div>
+        <button type="button" class="faq-q" onclick="toggleFaq(this)" aria-expanded="false"><span>墓じまいのサポートもお願いできますか？</span><span class="faq-icon" aria-hidden="true">+</span></button>
         <div class="faq-a">はい、改葬許可申請のサポートから、石材店のご紹介、遺骨の処置まで一貫してサポートいたします。まずは無料相談からお気軽にどうぞ。</div>
       </div>
       <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)"><span>支払い方法を教えてください。</span><div class="faq-icon">+</div></div>
+        <button type="button" class="faq-q" onclick="toggleFaq(this)" aria-expanded="false"><span>支払い方法を教えてください。</span><span class="faq-icon" aria-hidden="true">+</span></button>
         <div class="faq-a">銀行振込にてご対応可能です。</div>
       </div>
     </div>
@@ -1180,27 +1194,28 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
       <div class="apply-panel" id="ap0" style="display:block;">
         <h3 style="font-family:var(--serif);font-size:18px;color:var(--white);margin-bottom:20px;">お寺・納骨堂をお選びください</h3>
         <div class="temple-grid" id="templeGrid">
-          <div class="temple-card" onclick="selectTemple(this,'サンプル2寺　納骨堂','千葉県市川市',90000,10000)">
+          <button type="button" class="temple-card" onclick="selectTemple(this,'サンプル2寺　納骨堂','千葉県市川市',90000,10000)">
             <div class="temple-card-name">サンプル2寺　納骨堂</div>
             <div class="temple-card-area">千葉県市川市 · 浄土真宗</div>
             <div style="margin-top:4px;font-size:10px;opacity:0.6;">永代供養 · QR管理 · 個別安置</div>
-          </div>
-          <div class="temple-card" onclick="selectTemple(this,'サンプル3　永代供養墓','東京都江東区',90000,10000)">
+          </button>
+          <button type="button" class="temple-card" onclick="selectTemple(this,'サンプル3　永代供養墓','東京都江東区',90000,10000)">
             <div class="temple-card-name">サンプル3　永代供養墓</div>
             <div class="temple-card-area">東京都江東区 · 真言宗</div>
             <div style="margin-top:4px;font-size:10px;opacity:0.6;">永代供養 · QR管理 · 個別安置</div>
-          </div>
-          <div class="temple-card" onclick="selectTemple(this,'サンプル寺　永代供養墓','東京都台東区',90000,20000)">
+          </button>
+          <button type="button" class="temple-card" onclick="selectTemple(this,'サンプル寺　永代供養墓','東京都台東区',90000,20000)">
             <div class="temple-card-name">サンプル寺　永代供養墓</div>
             <div class="temple-card-area">東京都台東区 · 浄土宗</div>
             <div style="margin-top:4px;font-size:10px;opacity:0.6;">永代供養 · QR管理 · 個別安置</div>
-          </div>
-          <div class="temple-card" onclick="selectTemple(this,'サンプル寺　納骨堂','東京都中央区',90000,10000)">
+          </button>
+          <button type="button" class="temple-card" onclick="selectTemple(this,'サンプル寺　納骨堂','東京都中央区',90000,10000)">
             <div class="temple-card-name">サンプル寺　納骨堂</div>
             <div class="temple-card-area">東京都中央区 · 宗派不問</div>
             <div style="margin-top:4px;font-size:10px;opacity:0.6;">永代供養 · QR管理 · 個別安置</div>
-          </div>
+          </button>
         </div>
+        <div id="templeSelectFeedback" class="form-feedback" role="alert" aria-live="assertive" hidden></div>
         <button class="btn-primary" onclick="nextFromTemple()">次へ →</button>
       </div>
 
@@ -1236,7 +1251,7 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
           <div class="cost-row"><span>骨箱</span><span id="apBox">¥20,000</span></div>
           <div class="cost-row total"><span>お支払い合計</span><span id="apTotal">¥228,000</span></div>
         </div>
-        <p style="font-size:12px;color:rgba(255,255,255,0.35);margin:16px 0 24px;">※費用は選択内容により変動します。</p>
+        <p style="font-size:12px;color:rgba(255,255,255,0.35);margin:16px 0 24px;">※表示価格は全て税込です。費用は選択内容により変動します。</p>
         <div style="display:flex;gap:12px;">
           <button class="btn-outline" onclick="goApply(1)">← 戻る</button>
           <button class="btn-primary" style="flex:1;" onclick="markStepCompleted(3);goApply(3)">次へ →</button>
@@ -1311,7 +1326,7 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
             <input type="email" id="infoEmail2" autocomplete="email" inputmode="email" placeholder="example@mail.com（再入力）" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:var(--white);font-size:14px;box-sizing:border-box;">
           </div>
         </div>
-        <div id="infoError" style="color:#e55;font-size:13px;margin-bottom:12px;display:none;"></div>
+        <div id="infoError" role="alert" aria-live="assertive" style="color:#e55;font-size:13px;margin-bottom:12px;display:none;"></div>
         <div style="display:flex;gap:12px;">
           <button class="btn-outline" onclick="goApply(2)">← 戻る</button>
           <button class="btn-primary" style="flex:1;" onclick="nextFromInfo()">次へ →</button>
@@ -1340,6 +1355,7 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
           <span style="font-size:14px;color:var(--white);line-height:1.6;"><a href="/privacy.html" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:underline;">プライバシーポリシー</a>に同意し、個人情報の利用目的について承諾します</span>
         </label>
         <div class="cf-turnstile" data-sitekey="0x4AAAAAAC_oXRrYWjg7pCkf" style="margin-bottom:16px;"></div>
+        <div id="applyFeedback" class="form-feedback" role="alert" aria-live="assertive" hidden></div>
         <div style="display:flex;gap:12px;">
           <button class="btn-outline" onclick="goApply(3)">← 戻る</button>
           <button class="btn-primary" id="nextFromConsent" disabled style="flex:1;" onclick="submitApplyFlow(this)">次へ：今後の流れ →</button>
@@ -1382,7 +1398,11 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
             </div>
           </div>
         </div>
-        <p style="text-align:center;font-size:13px;color:rgba(255,255,255,0.35);">ご不明な点はお気軽にお問い合わせください</p>
+        <p style="text-align:center;font-size:13px;color:rgba(255,255,255,0.35);margin-bottom:24px;">ご不明な点はお気軽にお問い合わせください</p>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          <a href="#hero" class="btn-outline">トップへ戻る</a>
+          <button type="button" class="btn-outline" onclick="resetApplyForm();goApply(0);">新しく申込を始める</button>
+        </div>
       </div>
 
     </div>
@@ -1444,6 +1464,7 @@ footer { background: #080f1a; padding: 64px 40px 32px; color: rgba(255,255,255,0
           <textarea class="cform-textarea" id="contactMessage" name="message" placeholder="ご質問・ご相談内容をお聞かせください"></textarea>
         </div>
         <div class="cf-turnstile" data-sitekey="0x4AAAAAAC_oXRrYWjg7pCkf" style="margin-bottom:16px;"></div>
+        <div id="contactFeedback" class="form-feedback" role="alert" aria-live="assertive" hidden></div>
         <button class="btn-primary" type="submit" style="width:100%;" id="contactSubmitBtn" onclick="submitContactForm(this)">送信する</button>
       </form>
     </div>
@@ -1517,7 +1538,29 @@ function toggleDrawer() {
   if (drawer) drawer.classList.toggle('open');
   if (btn) btn.classList.toggle('open');
   document.body.classList.toggle('drawer-open');
+  var isOpen = drawer ? drawer.classList.contains('open') : false;
+  if (btn) {
+    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    btn.setAttribute('aria-label', isOpen ? 'メニューを閉じる' : 'メニューを開く');
+  }
+  if (drawer) drawer.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+  if (isOpen) {
+    var firstLink = drawer && drawer.querySelector('a, button');
+    if (firstLink) setTimeout(function() { firstLink.focus(); }, 100);
+  } else {
+    if (btn) btn.focus();
+  }
 }
+
+// ESCキーでドロワーを閉じる
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' || e.keyCode === 27) {
+    var drawer = document.getElementById('mobileDrawer');
+    if (drawer && drawer.classList.contains('open')) {
+      toggleDrawer();
+    }
+  }
+});
 
 // ── CTA float: フッター到達で自動非表示 ──
 (function() {
@@ -1567,6 +1610,23 @@ function resetTurnstile(scopeSel) {
   } catch (e) {}
 }
 
+// A4: 共通フィードバック表示(role="alert" / aria-live 領域)
+function showFeedback(id, msg, type) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'form-feedback ' + (type || 'error');
+  el.hidden = false;
+  // スクリーンリーダーに再通知させるため一度見えてから scroll
+  try { el.scrollIntoView({behavior:'smooth', block:'nearest'}); } catch(e) {}
+}
+function hideFeedback(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = '';
+  el.hidden = true;
+}
+
 // ── Contact form submit ──
 function submitContactForm(btn) {
   var name  = (document.getElementById('contactName')   ||{}).value ? document.getElementById('contactName').value.trim() : '';
@@ -1574,9 +1634,10 @@ function submitContactForm(btn) {
   var tel   = (document.getElementById('contactTel')    ||{}).value ? document.getElementById('contactTel').value.trim() : '';
   var type  = (document.getElementById('contactType')   ||{}).value || '';
   var body  = (document.getElementById('contactMessage')||{}).value ? document.getElementById('contactMessage').value.trim() : '';
-  if (!name || !email) { alert('お名前とメールアドレスは必須です。'); return; }
-  if (!isValidEmail(email)) { alert('メールアドレスの形式が正しくありません。'); return; }
-  if (tel && !isValidTel(tel)) { alert('電話番号の形式が正しくありません。（半角数字10桁以上）'); return; }
+  if (!name || !email) { showFeedback('contactFeedback', 'お名前とメールアドレスは必須です。', 'error'); return; }
+  if (!isValidEmail(email)) { showFeedback('contactFeedback', 'メールアドレスの形式が正しくありません。', 'error'); return; }
+  if (tel && !isValidTel(tel)) { showFeedback('contactFeedback', '電話番号の形式が正しくありません。(半角数字10桁以上)', 'error'); return; }
+  hideFeedback('contactFeedback');
   btn.disabled = true; btn.textContent = '送信中...';
   fetch('https://jbnhvwncddvvtpaigzeq.supabase.co/functions/v1/form-contact', {
     method: 'POST',
@@ -1588,17 +1649,17 @@ function submitContactForm(btn) {
     if (data && data.success) {
       btn.textContent = '送信完了';
       // 成功時は disabled のまま（二重送信防止）
-      alert('お問い合わせを受け付けました。\n担当者からのご連絡をお待ちください。');
+      showFeedback('contactFeedback', 'お問い合わせを受け付けました。担当者からのご連絡をお待ちください。', 'success');
     } else {
       btn.disabled = false; btn.textContent = '送信する';
       resetTurnstile('#contact');
-      alert('送信に失敗しました。時間をおいて再度お試しください。');
+      showFeedback('contactFeedback', '送信に失敗しました。時間をおいて再度お試しください。', 'error');
     }
   })
   .catch(function() {
     btn.disabled = false; btn.textContent = '送信する';
     resetTurnstile('#contact');
-    alert('送信に失敗しました。時間をおいて再度お試しください。');
+    showFeedback('contactFeedback', '送信に失敗しました。時間をおいて再度お試しください。', 'error');
   });
 }
 
@@ -1626,6 +1687,15 @@ var temples = [
 var searchAreas = ["千葉県","東京都"];
 var searchAreaCityMap = {"千葉県":["市川市"],"東京都":["中央区","台東区","江東区"]};
 var searchSects = ["宗派不問","浄土宗","浄土真宗","真言宗"];
+
+// F4対応: templesはsync-web互換のため残すが、データの真実はestTemplesを使用する。
+// 表示・検索用に tags を付与した派生配列を getTemples() で生成する。
+var TEMPLE_DEFAULT_TAGS = ['永代供養','QR管理','個別安置'];
+function getTemples() {
+  return (Array.isArray(estTemples) ? estTemples : []).map(function(t) {
+    return Object.assign({}, t, { tags: (Array.isArray(t.tags) && t.tags.length ? t.tags : TEMPLE_DEFAULT_TAGS) });
+  });
+}
 
 function initEstArea() {
   var sel = document.getElementById('estArea');
@@ -1670,7 +1740,7 @@ function updateResults() {
   var activeTab = (document.querySelector('.search-tab.active') || {}).textContent || '';
   var list = document.getElementById('resultsList');
   if (!list) return;
-  var filtered = temples.slice();
+  var filtered = getTemples();
   if (activeTab.includes('エリア')) {
     var areaVal  = (document.getElementById('searchArea')||{}).value || '';
     var cityVal  = (document.getElementById('searchCity')||{}).value || '';
@@ -1731,7 +1801,12 @@ function goToApplyWithTemple(name) {
 }
 
 // ── FAQ ──
-function toggleFaq(el) { el.parentElement.classList.toggle('open'); }
+function toggleFaq(el) {
+  var item = el.parentElement;
+  item.classList.toggle('open');
+  var isOpen = item.classList.contains('open');
+  el.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+}
 function toggleIhai(show) { var el = document.getElementById('ihaiFields'); if (el) el.style.display = show ? 'block' : 'none'; }
 
 // ── Visit steps ──
@@ -1743,7 +1818,8 @@ function selectLoc(el) { document.querySelectorAll('.loc-card').forEach(c => c.c
 
 function nextFromLoc() {
   var sel = document.querySelector('.loc-card.selected');
-  if (!sel) { alert('見学場所をお選びください。'); return; }
+  if (!sel) { showFeedback('visitLocFeedback', '見学場所をお選びください。', 'error'); return; }
+  hideFeedback('visitLocFeedback');
   switchVisit(1);
 }
 
@@ -1867,7 +1943,8 @@ function selectTemple(el, name, area, price, kinugi) {
   if (annualLabel) annualLabel.textContent = (applyState.annualFee).toLocaleString();
 }
 function nextFromTemple() {
-  if (!applyState.temple) { alert('お寺・納骨堂をお選びください'); return; }
+  if (!applyState.temple) { showFeedback('templeSelectFeedback', 'お寺・納骨堂をお選びください。', 'error'); return; }
+  hideFeedback('templeSelectFeedback');
   markStepCompleted(1);
   goApply(1);
 }
@@ -1932,6 +2009,35 @@ function goApply(idx) {
   if (sec) sec.scrollIntoView({behavior:'smooth', block:'start'});
 }
 var applyCompletedStep = 0;
+
+function resetApplyForm() {
+  applyState = { temple:'', contract:90000, kinugi:10000, annualFee:36000, period:3 };
+  applyCompletedStep = 0;
+  // 入力フィールドクリア
+  ['infoName','infoKana','infoAge','infoZip','infoPref','infoCity','infoStreet','infoBldg','infoTel','infoEmail','infoEmail2'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  // チェックボックス解除
+  var c1 = document.getElementById('consentCheck');  if (c1) c1.checked = false;
+  var c2 = document.getElementById('privacyCheck');  if (c2) c2.checked = false;
+  var nfc = document.getElementById('nextFromConsent'); if (nfc) nfc.disabled = true;
+  // temple-card 選択解除
+  document.querySelectorAll('.temple-card').forEach(function(card) { card.classList.remove('selected'); });
+  // 期間スライダー初期値
+  var slider = document.getElementById('periodSlider'); if (slider) slider.value = 3;
+  var pDisp  = document.getElementById('periodDisplay');  if (pDisp)  pDisp.textContent  = '3';
+  var yLabel = document.getElementById('periodYearLabel'); if (yLabel) yLabel.textContent = '3';
+  var fDisp  = document.getElementById('periodFeeDisplay'); if (fDisp)  fDisp.textContent = '¥108,000';
+  var aLabel = document.getElementById('periodAnnualFeeLabel'); if (aLabel) aLabel.textContent = '36,000';
+  // step-btn の completed クリア
+  document.querySelectorAll('.apply-step-btn').forEach(function(b) { b.classList.remove('completed'); });
+  // エラー表示クリア
+  var infoErr = document.getElementById('infoError'); if (infoErr) { infoErr.textContent = ''; infoErr.style.display = 'none'; }
+  // 費用確認の表示リフレッシュ
+  updateApplySummary();
+  // Turnstile もリセット
+  resetTurnstile('#apply');
+}
 
 function markStepCompleted(idx) {
   if (idx > applyCompletedStep) applyCompletedStep = idx;
@@ -2024,7 +2130,7 @@ async function submitApplyFlow(btn) {
     btn.disabled = false;
     btn.textContent = originalText;
     resetTurnstile('#apply');
-    alert('申込の送信に失敗しました。\nお手数ですが、しばらくしてから再度お試しください。');
+    showFeedback('applyFeedback', '申込の送信に失敗しました。時間をおいて再度お試しください。', 'error');
   }
 }
 
@@ -2049,12 +2155,13 @@ function submitVisitForm(btn) {
   var time2 = ((document.getElementById('visitTime2') ||{}).value || '').trim();
   var note  = ((document.getElementById('visitNote')  ||{}).value || '').trim();
 
-  if (!location) { alert('見学場所をお選びください。'); return; }
-  if (!date1 || !time1) { alert('第1希望の日付と時間帯をご入力ください。'); return; }
-  if (!name || !tel || !email) { alert('お名前・電話番号・メールアドレスは必須です。'); return; }
-  if (!isValidEmail(email)) { alert('メールアドレスの形式が正しくありません。'); return; }
-  if (email !== email2) { alert('メールアドレス（確認）が一致しません。'); return; }
-  if (!isValidTel(tel)) { alert('電話番号の形式が正しくありません。（半角数字10桁以上）'); return; }
+  if (!location) { showFeedback('visitFormFeedback', '見学場所をお選びください。', 'error'); return; }
+  if (!date1 || !time1) { showFeedback('visitFormFeedback', '第1希望の日付と時間帯をご入力ください。', 'error'); return; }
+  if (!name || !tel || !email) { showFeedback('visitFormFeedback', 'お名前・電話番号・メールアドレスは必須です。', 'error'); return; }
+  if (!isValidEmail(email)) { showFeedback('visitFormFeedback', 'メールアドレスの形式が正しくありません。', 'error'); return; }
+  if (email !== email2) { showFeedback('visitFormFeedback', 'メールアドレス(確認)が一致しません。', 'error'); return; }
+  if (!isValidTel(tel)) { showFeedback('visitFormFeedback', '電話番号の形式が正しくありません。(半角数字10桁以上)', 'error'); return; }
+  hideFeedback('visitFormFeedback');
 
   if (btn) { btn.disabled = true; btn.textContent = '送信中...'; }
   fetch('https://jbnhvwncddvvtpaigzeq.supabase.co/functions/v1/form-visit', {
@@ -2074,19 +2181,18 @@ function submitVisitForm(btn) {
   .then(function(r) { return r.json(); })
   .then(function(data) {
     if (data && data.success) {
-      // 成功時はボタンdisabledのまま完了画面へ
       if (btn) btn.textContent = '送信完了';
       switchVisit(3);
     } else {
       if (btn) { btn.disabled = false; btn.textContent = '見学を予約する'; }
       resetTurnstile('#visit');
-      alert('送信に失敗しました。時間をおいて再度お試しください。');
+      showFeedback('visitFormFeedback', '送信に失敗しました。時間をおいて再度お試しください。', 'error');
     }
   })
   .catch(function() {
     if (btn) { btn.disabled = false; btn.textContent = '見学を予約する'; }
     resetTurnstile('#visit');
-    alert('送信に失敗しました。時間をおいて再度お試しください。');
+    showFeedback('visitFormFeedback', '送信に失敗しました。時間をおいて再度お試しください。', 'error');
   });
 }
 
@@ -2104,11 +2210,12 @@ function applyFromEstimate() {
   var period = parseInt((document.getElementById('estPeriod') || {}).value) || 3;
 
   if (!templeName) {
-    alert('まず「ご希望エリア」と「送骨堂」を選択してください。');
+    showFeedback('estimateFeedback', 'まず「ご希望エリア」と「送骨堂」を選択してください。', 'error');
     var estArea = document.getElementById('estArea');
     if (estArea) estArea.focus();
     return;
   }
+  hideFeedback('estimateFeedback');
 
   var t = estTemples.find(function(x) { return x.name === templeName; });
   if (!t) {
@@ -2178,8 +2285,8 @@ function initSearchSelects() {
 
 function initPriceRange() {
   var slider = document.getElementById('priceRange');
-  if (!slider || !Array.isArray(temples) || temples.length === 0) return;
-  var prices = temples.map(function(t) { return Number(t.price) || 0; }).filter(function(p) { return p > 0; });
+  if (!slider || !Array.isArray(estTemples) || estTemples.length === 0) return;
+  var prices = estTemples.map(function(t) { return Number(t.price) || 0; }).filter(function(p) { return p > 0; });
   if (prices.length === 0) return;
   var minP = Math.min.apply(null, prices);
   var maxP = Math.max.apply(null, prices);
